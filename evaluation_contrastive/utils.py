@@ -9,62 +9,51 @@ ROOT = os.path.dirname(os.path.realpath(__file__)) + "/../"
 load_dotenv(ROOT + ".env")
 
 
-def cache(func=None, *, cache_dir=None):
-    """
-    Decorator that caches the result of a function call to a file.
+def cache_read(cache_dir=None, cache="default", **kwargs):
+    if cache is None:
+        return None
 
-    Arguments in the wrapper:
-        cache (str | None): The cache filename to use. Defaults to "default".
-                           If None or False, caching is disabled.
-    """
-    if func is None:
-        return functools.partial(cache, cache_dir=cache_dir)
+    if cache_dir is None:
+        cache_file = ROOT + f"cache/{cache}.json"
+    else:
+        cache_file = ROOT + f"cache/{cache_dir}/{cache}.json"
 
-    @functools.wraps(func)
-    def wrapper(*args, cache="default", **kwargs):
-        if len(args) > 0:
-            params = list(inspect.signature(func).parameters.keys())
-            if not (len(args) == 1 and params and params[0] in ("self", "cls")):
-                raise ValueError(
-                    "Only keyword arguments are supported for cached functions"
-                )
+    key = ", ".join([f"{k}={v}" for k, v in kwargs.items()])
 
-        # If cache is explicitly None, disable caching
-        if not cache:
-            return func(*args, **kwargs)
+    # Try to load from cache
+    if os.path.exists(cache_file):
+        with open(cache_file, "r") as f:
+            data = json.load(f)
+        if key in data:
+            return data[key]
+    else:
+        return None
 
-        # Ensure cache directory exists
-        os.makedirs(ROOT + "cache", exist_ok=True)
-        if cache_dir is None:
-            cache_file = ROOT + f"cache/{cache}.json"
-        else:
-            os.makedirs(ROOT + f"cache/{cache_dir}", exist_ok=True)
-            cache_file = ROOT + f"cache/{cache_dir}/{cache}.json"
 
-        key = ", ".join([f"{k}={v}" for k, v in kwargs.items()])
+def cache_write(result, cache_dir=None, cache="default", **kwargs):
+    if cache is None:
+        return None
 
-        # Try to load from cache
+    key = ", ".join([f"{k}={v}" for k, v in kwargs.items()])
+
+    os.makedirs(ROOT + "cache", exist_ok=True)
+    if cache_dir is None:
+        cache_file = ROOT + f"cache/{cache}.json"
+    else:
+        os.makedirs(ROOT + f"cache/{cache_dir}", exist_ok=True)
+        cache_file = ROOT + f"cache/{cache_dir}/{cache}.json"
+
+    if os.path.exists(cache_file):
+        with open(cache_file, "r") as f:
+            data = json.load(f)
+    else:
         data = {}
-        if os.path.exists(cache_file):
-            with open(cache_file, "r") as f:
-                try:
-                    data = json.load(f)
-                except json.JSONDecodeError:
-                    pass
-            if key in data:
-                return data[key]
 
-        # Call the actual function
-        result = func(*args, **kwargs)
+    data[key] = result
+    with open(cache_file, "w") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
-        # Save to cache
-        data[key] = result
-        with open(cache_file, "w") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-
-        return result
-
-    return wrapper
+    return result
 
 
 def load_data(
