@@ -1,0 +1,40 @@
+[project]
+name = "evaluation-contrastive"
+version = "0.0.0"
+description = "Contrastive evaluation of multilingual tasks with humans"
+readme = "README.md"
+license = { text = "apache-2.0" }
+requires-python = ">=3.12"
+authors = [{ name = "Vilém Zouhar", email = "vilem.zouhar@gmail.com" }]
+keywords = [
+    "evaluation",
+    "machine translation",
+    "human evaluation",
+    "annotation",
+]
+dependencies = [
+    "subset2evaluate>=1.0.21",
+    "cohere>=5.20.0",
+    "evaluation_bandit>=0.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.urls]
+Repository = "https://github.com/zouharvi/evaluation-contrastive"
+Issues = "https://github.com/zouharvi/evaluation-contrastive/issues"
+
+[tool.setuptools]
+package-dir = { evaluation_contrastive = "evaluation_contrastive" }
+packages = ["evaluation_contrastive"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# pip install -e . --config-settings editable_mode=strict
+
+[tool.ruff.lint]
+ignore = ["E402"]
