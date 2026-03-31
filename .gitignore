@@ -1,6 +1,8 @@
 # added by zouharvi
 .env
 cache/
+humeval/data/
+humeval/example_*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
