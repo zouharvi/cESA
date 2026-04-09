@@ -1,107 +1,268 @@
 # %%
 
 import subset2evaluate.utils
+import collections
+import random
+import json
 
-data_enit = subset2evaluate.utils.load_data_wmt("wmt25", "en-it_IT", normalize=False)
-data_enja = subset2evaluate.utils.load_data_wmt(
+
+data = subset2evaluate.utils.load_data_wmt(
     "wmt25", "en-ja_JP", normalize=False, include_ref=True
 )
+# dict_keys(['Claude-4', 'DeepSeek-V3', 'In2x', 'GemTrans', 'NTTSU', 'UvA-MT', 'Laniqo', 'Shy', 'ONLINE-B', 'KIKIS', 'Algharb', 'Wenyiil', 'Mistral-Medium', 'CommandA-MT', 'Yolu', 'GPT-4.1', 'Systran', 'refA', 'Gemini-2.5-Pro'])
+MODELS = [
+    "refA",
+    "Gemini-2.5-Pro",
+    "Algharb",
+    "Mistral-Medium",
+    # "Shy",
+    "CommandA-MT",
+    "DeepSeek-V3",
+    "Claude-4",
+    "ONLINE-B",
+    "Yolu",
+    "Laniqo",
+    # "Wenyiil",
+]
+
+time_per_word = 1 / (4447 / 60 / 60)
+print(time_per_word)
 
 # %%
 
-# 200 hours = 2 * time_per_char_enzh * sum([len(item["src"].split()) for item in data_enzh]) * len(data_enzh[0]["scores"])
-time_per_word_enja = (
-    200
-    * 60
-    * 60
-    / (
-        2
-        * sum([len(item["src"].split()) for item in data_enja])
-        * len(data_enja[0]["scores"])
-    )
+# 1 en-ja_JP_#_news_#_brisbanetimes.com.au.306576 6
+# 1 en-ja_JP_#_news_#_guardian.228996 9
+# 1 en-ja_JP_#_news_#_guardian.230737 8
+# 1 en-ja_JP_#_news_#_guardian.231311 9
+# 2 en-ja_JP_#_news_#_guardian.231314 10
+# 2 en-ja_JP_#_news_#_newrepublic.com.12619 4
+# 2 en-ja_JP_#_news_#_newrepublic.com.12623 2
+# 2 en-ja_JP_#_news_#_nytimes.153341 5
+# 1 en-ja_JP_#_social_#_112502991207286008 5
+# 1 en-ja_JP_#_social_#_114151944720213193 7
+# 1 en-ja_JP_#_social_#_114157282362077575 5
+# 2 en-ja_JP_#_social_#_114174389242714730 8
+# 2 en-ja_JP_#_social_#_114300646822630777 12
+# 2 en-ja_JP_#_social_#_114417630342798842 21
+# 1 en-ja_JP_#_speech_#_vid_27keISTaqYw 1
+# 1 en-ja_JP_#_speech_#_vid_2cLeDVfEqG4 1
+# 1 en-ja_JP_#_speech_#_vid_3vpEaAjDgtI 1
+# 1 en-ja_JP_#_speech_#_vid_6dP6bHX73_k 1
+# 1 en-ja_JP_#_speech_#_vid_7Aw4Q46omiM 1
+# 1 en-ja_JP_#_speech_#_vid_8I8msBYGNR4 1
+# 1 en-ja_JP_#_speech_#_vid_8qZFupajBuo 1
+# 1 en-ja_JP_#_speech_#_vid_BrC0v6K3H4I 1
+# 1 en-ja_JP_#_speech_#_vid_Ft41IG2BAG8 1
+# 1 en-ja_JP_#_speech_#_vid_GYfhGLrrDts 1
+# 1 en-ja_JP_#_speech_#_vid_HjRhgaz1xTI 1
+# 1 en-ja_JP_#_speech_#_vid_JIq55zBGNX4 1
+# 1 en-ja_JP_#_speech_#_vid_JoTLTGv8kqA 1
+# 2 en-ja_JP_#_speech_#_vid_Lb7Dhf7oo4Y 1
+# 2 en-ja_JP_#_speech_#_vid_M7v3ZfP4fm0 1
+# 2 en-ja_JP_#_speech_#_vid_OmK3XTCDbbs 1
+# 2 en-ja_JP_#_speech_#_vid_PJLN1kAzbyw 1
+# 2 en-ja_JP_#_speech_#_vid_QgTkUWYd82M 1
+# 2 en-ja_JP_#_speech_#_vid_Qu8m9h-AC0I 1
+# 2 en-ja_JP_#_speech_#_vid_RIjzeZ1xk1c 1
+# 2 en-ja_JP_#_speech_#_vid_Si9CnnVI8sk 1
+# 2 en-ja_JP_#_speech_#_vid_YTxmx8hyJtA 1
+# 2 en-ja_JP_#_speech_#_vid__S0GOwEJXUA 1
+# en-ja_JP_#_speech_#_vid__r0K17ipoac 1
+# en-ja_JP_#_speech_#_vid_fWRlPSl5itQ 1
+# en-ja_JP_#_speech_#_vid_m6CcZN4S8mk 1
+# en-ja_JP_#_speech_#_vid_mDjddYiHd7A 1
+# en-ja_JP_#_speech_#_vid_n-mmxFdva4w 1
+# en-ja_JP_#_speech_#_vid_nNjtLybPRjM 1
+# en-ja_JP_#_speech_#_vid_nU09s4CuaRg 1
+# en-ja_JP_#_speech_#_vid_qhwgP27R4xw 1
+# en-ja_JP_#_speech_#_vid_r-aI0JD0bCE 1
+# en-ja_JP_#_speech_#_vid_rU8nY03Lo5s 1
+# en-ja_JP_#_speech_#_vid_u2JNW0Ftyzg 1
+# en-ja_JP_#_speech_#_vid_v2NNTNAXRWY 1
+# en-ja_JP_#_speech_#_vid_x48axn9yc9k 1
+
+doc_to_data = collections.defaultdict(list)
+for item in data:
+    if item["domain"] == "literary":
+        continue
+    doc_to_data[item["doc"]].append(item)
+doc_to_data = {doc: data for doc, data in doc_to_data.items()}
+for doc, data_local in sorted(doc_to_data.items(), key=lambda x: x[0]):
+    print(doc, len(data_local))
+
+PHASES = []
+PHASES.append(
+    [
+        ("en-ja_JP_#_news_#_guardian.228996", 6),
+        ("en-ja_JP_#_news_#_guardian.230737", 4),
+        ("en-ja_JP_#_news_#_guardian.231311", 4),
+        ("en-ja_JP_#_social_#_112502991207286008", 5),
+        ("en-ja_JP_#_speech_#_vid_BrC0v6K3H4I", 1),
+        ("en-ja_JP_#_speech_#_vid_Ft41IG2BAG8", 1),
+        ("en-ja_JP_#_speech_#_vid_GYfhGLrrDts", 1),
+        ("en-ja_JP_#_speech_#_vid_HjRhgaz1xTI", 1),
+        ("en-ja_JP_#_speech_#_vid_JIq55zBGNX4", 1),
+        ("en-ja_JP_#_speech_#_vid_JoTLTGv8kqA", 1),
+    ]
 )
-time_per_word_enja = 1 / (4447 / 60 / 60)
-
-print(time_per_word_enja)
-print(data_enja[0]["scores"].keys())
-
-# %%
-print(len(data_enja[0]["scores"]), "models")
-
-import collections
+PHASES.append(
+    [
+        ("en-ja_JP_#_news_#_brisbanetimes.com.au.306576", 6),
+        ("en-ja_JP_#_news_#_guardian.228996", 6),
+        ("en-ja_JP_#_social_#_114151944720213193", 7),
+        ("en-ja_JP_#_social_#_114157282362077575", 5),
+        ("en-ja_JP_#_speech_#_vid_27keISTaqYw", 1),
+        ("en-ja_JP_#_speech_#_vid_2cLeDVfEqG4", 1),
+        ("en-ja_JP_#_speech_#_vid_3vpEaAjDgtI", 1),
+        ("en-ja_JP_#_speech_#_vid_6dP6bHX73_k", 1),
+        ("en-ja_JP_#_speech_#_vid_7Aw4Q46omiM", 1),
+        ("en-ja_JP_#_speech_#_vid_8I8msBYGNR4", 1),
+        ("en-ja_JP_#_speech_#_vid_8qZFupajBuo", 1),
+    ]
+)
+PHASES.append(
+    [
+        ("en-ja_JP_#_news_#_guardian.231314", 6),
+        ("en-ja_JP_#_news_#_newrepublic.com.12619", 4),
+        ("en-ja_JP_#_social_#_114300646822630777", 4),
+        ("en-ja_JP_#_social_#_114417630342798842", 4),
+        ("en-ja_JP_#_speech_#_vid_Qu8m9h-AC0I", 1),
+        ("en-ja_JP_#_speech_#_vid_RIjzeZ1xk1c", 1),
+        ("en-ja_JP_#_speech_#_vid_Si9CnnVI8sk", 1),
+        ("en-ja_JP_#_speech_#_vid_YTxmx8hyJtA", 1),
+        ("en-ja_JP_#_speech_#_vid__S0GOwEJXUA", 1),
+    ]
+)
+PHASES.append(
+    [
+        ("en-ja_JP_#_news_#_newrepublic.com.12623", 2),
+        ("en-ja_JP_#_news_#_nytimes.153341", 5),
+        ("en-ja_JP_#_social_#_114174389242714730", 6),
+        ("en-ja_JP_#_speech_#_vid_Lb7Dhf7oo4Y", 1),
+        ("en-ja_JP_#_speech_#_vid_M7v3ZfP4fm0", 1),
+        ("en-ja_JP_#_speech_#_vid_OmK3XTCDbbs", 1),
+        ("en-ja_JP_#_speech_#_vid_PJLN1kAzbyw", 1),
+        ("en-ja_JP_#_speech_#_vid_QgTkUWYd82M", 1),
+    ]
+)
 
 data_by_domain = collections.defaultdict(list)
-
-for line in data_enja:
+for line in data:
     domain = line["domain"]
     data_by_domain[domain].append(line)
 
 print({domain: len(data) for domain, data in data_by_domain.items()})
-print(len(data_enja))
 
-# %%
+data_phases = []
+for phase in PHASES:
+    data_phase = []
+    for doc, num_segments in phase:
+        data_phase.append(doc_to_data[doc][:num_segments])
+    data_phases.append(data_phase)
 
-for cap in [10, 20]:
-    data_enja_capped = [
-        segment
-        for domain, data in data_by_domain.items()
-        for segment in data[:cap]
-        if domain != "literary"
-    ]
-
-    print(
-        sum([len(item["src"].split()) for item in data_enja_capped])
-        * (len(data_enja[0]["scores"]) + 1)
-        * 2
-        * time_per_word_enja
-        / (60 * 60)
-    )
-
-# %%
-import statistics
-
-# average number of characters in source
-print(statistics.mean([len(item["src"].split()) for item in data_enja_capped]))
-
-# %%
-import copy
-import json
-
-data_to_doc = collections.defaultdict(list)
-for item in data_enja_capped:
-    print(item["doc"])
-    data_to_doc[item["doc"]].append(item)
-
-data_to_doc = {doc: data for doc, data in data_to_doc.items() if len(data) >= 2}
-
-data_local = [
-    [
-        {
-            "src": item["src"],
-            "tgt": {model: item["tgt"][model] for model in list(data_enja[0]["scores"].keys())[:models]},
-        }
+data_phases_out_flat = []
+for phase, data_phase in enumerate(data_phases):
+    data_phase_out_flat = []
+    for data_doc in data_phase:
+        random.seed(0)
+        for contrastive_k in [1, 2, 3, 4]:
+            # we might have to dip into duplicate models, so we sample from the doubled list
+            models = []
+            models += random.sample(MODELS, len(MODELS))
+            models += random.sample(MODELS, len(MODELS))
+            models_groups = []
+            # even for standard ESA add +2 duplicate for intra AA because they divide 10
+            while sum(len(models) for models in models_groups) < 12:
+                models_groups.append(models[:contrastive_k])
+                models = models[contrastive_k:]
+            for dup_i in [0, 1]:
+                for model_group in models_groups:
+                    data_phase_out_flat.append([])
+                    for item_i, item in enumerate(data_doc):
+                        if "_#_social_#_" in item["doc"]:
+                            src_img = item["doc"].split("_#_")[-1]
+                            src = f'<img style="width: 100%;" src="https://vilda.net/t/wmt25/assets/en/social/{src_img}-anon/{src_img}-anon_{item_i + 1}.png">'
+                        elif "_#_speech_#_" in item["doc"]:
+                            src_vid = item["doc"].split("_#_")[-1]
+                            src = f'<video style="width: 100%;" src="https://vilda.net/t/wmt25/assets/en/speech/{src_vid}.mp4" controls>'
+                        else:
+                            src = item["src"].replace("\\n", "\n")
+                        data_phase_out_flat[-1].append(
+                            {
+                                "src": src,
+                                "src_text": item["src"],
+                                "tgt": {
+                                    model: item["tgt"][model] for model in model_group
+                                },
+                                "doc": item["doc"] + f"-dup{dup_i}",
+                            }
+                        )
+    time = sum(
+        len(item["src_text"].split()) * len(item["tgt"]) * time_per_word
+        for doc in data_phase_out_flat
         for item in doc
-    ]
-    for models, doc in zip([1, 2, 3, 4, 5, 6], data_to_doc.values())
-]
+    )
+    print(f"Phase time: {time / (60 * 60):.1f} hours per all configurations")
+    data_phases_out_flat.append(data_phase_out_flat)
 
-with open("../humeval/cESA_guidelines.html", "r") as f:
-    html_guidelines = f.read()
+# %%
+import pearmut.constants
 
-data_pearmut = {
-    "info": {
-        "assignment": "task-based",
-        "protocol": "ESA",
-        "textfield": "hidden",
-        "instructions": html_guidelines,
-    },
-    "campaign_id": "example_cESA",
-    "data": [
-        copy.deepcopy(data_local),
-        copy.deepcopy(data_local),
-        copy.deepcopy(data_local),
-    ]
+instructions = (
+    pearmut.constants.PROTOCOL_INSTRUCTIONS["cESA"]
+    + """
+<style>
+.output_candidate, .output_src {
+    width: 345px !important;
+    flex: unset;
 }
+.output_tgt {
+    font-size: 10pt;
+}
+</style>
+"""
+)
 
-with open("../humeval/example_cESA.json", "w") as f:
-    json.dump(data_pearmut, f, indent=4, ensure_ascii=False)
+
+for phase, data_phase_out_flat in enumerate(data_phases_out_flat):
+    docs_per_user = 15
+    # random shuffle
+    # TODO: make sure user sees the right things, etc
+    data_phase_out_flat = random.sample(data_phase_out_flat, len(data_phase_out_flat))
+    tasks = [
+        data_phase_out_flat[i : i + docs_per_user]
+        for i in range(0, len(data_phase_out_flat), docs_per_user)
+    ]
+    assert sum(len(task) for task in tasks) == len(data_phase_out_flat)
+    data_pearmut = {
+        "info": {
+            "assignment": "task-based",
+            "protocol": "cESA",
+            "textfield": "hidden",
+            # "assets": {
+            #     "source": "wmt25_genmt_assets/assets/en",
+            #     "destination": "assets/wmt25_genmt_assets",
+            # },
+            "instructions": instructions,
+        },
+        "campaign_id": f"mock_phase{phase}",
+        "data": tasks,
+    }
+
+    with open(f"../humeval/example_cESA_phase{phase}.json", "w") as f:
+        json.dump(data_pearmut, f, indent=4, ensure_ascii=False)
+
+# %%
+import os
+import requests
+import zipfile
+import io
+
+os.makedirs("../humeval/wmt25_genmt_assets", exist_ok=True)
+zipfile.ZipFile(
+    io.BytesIO(
+        requests.get(
+            "https://data.statmt.org/wmt25/general-mt/wmt25_genmt_assets.zip"
+        ).content
+    )
+).extractall("../humeval/wmt25_genmt_assets")
