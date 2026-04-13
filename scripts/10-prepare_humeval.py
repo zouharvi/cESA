@@ -26,8 +26,6 @@ MODELS = [
 time_per_word = 1 / (4447 / 60 / 60)
 print(time_per_word)
 
-# %%
-
 # 1 en-ja_JP_#_news_#_brisbanetimes.com.au.306576 6
 # 1 en-ja_JP_#_news_#_guardian.228996 9
 # 1 en-ja_JP_#_news_#_guardian.230737 8
@@ -158,11 +156,18 @@ for phase in PHASES:
         data_phase.append(doc_to_data[doc][:num_segments])
     data_phases.append(data_phase)
 
+
+Item = dict
+Doc = list[Item]
+# DocAll --- docs across the same configuration
+DocAll = list[Doc]
+
 data_phases_out_flat = []
 for phase, data_phase in enumerate(data_phases):
-    data_phase_out_flat = []
+    data_phase_out: list[list[DocAll]] = []
     for data_doc in data_phase:
         random.seed(0)
+        data_item: list[DocAll] = []
         for contrastive_k in [1, 2, 3, 4]:
             # we might have to dip into duplicate models, so we sample from the doubled list
             models = []
@@ -174,8 +179,9 @@ for phase, data_phase in enumerate(data_phases):
                 models_groups.append(models[:contrastive_k])
                 models = models[contrastive_k:]
             for dup_i in [0, 1]:
+                data_item_config: DocAll = []
                 for model_group in models_groups:
-                    data_phase_out_flat.append([])
+                    data_doc_local: Doc = []
                     for item_i, item in enumerate(data_doc):
                         if "_#_social_#_" in item["doc"]:
                             src_img = item["doc"].split("_#_")[-1]
@@ -185,7 +191,7 @@ for phase, data_phase in enumerate(data_phases):
                             src = f'<video style="width: 100%;" src="https://vilda.net/t/wmt25/assets/en/speech/{src_vid}.mp4" controls>'
                         else:
                             src = item["src"].replace("\\n", "\n")
-                        data_phase_out_flat[-1].append(
+                        data_doc_local.append(
                             {
                                 "src": src,
                                 "src_text": item["src"],
@@ -195,16 +201,22 @@ for phase, data_phase in enumerate(data_phases):
                                 "doc": item["doc"] + f"-dup{dup_i}",
                             }
                         )
+                    data_item_config.append(data_doc_local)
+                data_item.append(data_item_config)
+        data_phase_out.append(data_item)
     time = sum(
         len(item["src_text"].split()) * len(item["tgt"]) * time_per_word
-        for doc in data_phase_out_flat
+        for data_item in data_phase_out
+        for data_item_config in data_item
+        for doc in data_item_config
         for item in doc
     )
     print(f"Phase time: {time / (60 * 60):.1f} hours per all configurations")
-    data_phases_out_flat.append(data_phase_out_flat)
+    data_phases_out_flat.append(data_phase_out)
 
 # %%
 import pearmut.constants
+import statistics
 
 instructions = (
     pearmut.constants.PROTOCOL_INSTRUCTIONS["cESA"]
@@ -225,18 +237,37 @@ with open("/home/vilda/pearmut/examples/tutorials/cesa_jaen.json", "r") as f:
     data_tutorial = json.load(f)["data"][0]
 
 
-for phase, data_phase_out_flat in enumerate(data_phases_out_flat):
-    docs_per_user = 15
-    # random shuffle
-    # TODO: make sure user sees the right things, etc
-    data_phase_out_flat = random.sample(data_phase_out_flat, len(data_phase_out_flat))
+for phase, data_phase_out in enumerate(data_phases_out_flat):
+    num_users = 40
+    data_phase_out: list[list[DocAll]]
+    tasks = [[] for _ in range(num_users)]
+    for data_item in data_phase_out:
+        data_item: list[DocAll]
+        # sort by fewest segments to most segments so that we assign the longest ones last (to make sure we don't end up with a long one at the end that doesn't fit in any user's queue)
+        tasks.sort(key=lambda task: sum([len(doc) for doc in task]))
+        tasks_to_expand = tasks[:len(data_item)]
+        # make sure that we assign different conditions of the same doc to different users
+        for task, data_item_config in zip(tasks_to_expand, data_item):
+            data_item_config: DocAll
+            task.extend(data_item_config)
+
+    print([len(task) for task in tasks])
+    print(f"{statistics.mean([
+        sum([len(item["src_text"].split()) * len(item["tgt"]) * time_per_word for doc in task for item in doc])
+        for task in tasks
+    ]) / (60 * 60):.1f} hours per user")
+    print()
+
+    # shuffle queue
+    for task in tasks:
+        random.shuffle(task)
+
+    # prepend tutorial
     tasks = [
-        data_tutorial + data_phase_out_flat[i : i + docs_per_user]
-        for i in range(0, len(data_phase_out_flat), docs_per_user)
+        list(data_tutorial) + task
+        for task in tasks
     ]
-    assert sum(len(task) for task in tasks) == len(data_phase_out_flat) + len(
-        tasks
-    ) * len(data_tutorial)
+
     data_pearmut = {
         "info": {
             "assignment": "task-based",
