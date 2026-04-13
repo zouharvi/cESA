@@ -15,14 +15,12 @@ MODELS = [
     "Gemini-2.5-Pro",
     "Algharb",
     "Mistral-Medium",
-    # "Shy",
     "CommandA-MT",
     "DeepSeek-V3",
     "Claude-4",
     "ONLINE-B",
     "Yolu",
     "Laniqo",
-    # "Wenyiil",
 ]
 
 time_per_word = 1 / (4447 / 60 / 60)
@@ -223,6 +221,9 @@ instructions = (
 """
 )
 
+with open("/home/vilda/pearmut/examples/tutorials/cesa_jaen.json", "r") as f:
+    data_tutorial = json.load(f)["data"][0]
+
 
 for phase, data_phase_out_flat in enumerate(data_phases_out_flat):
     docs_per_user = 15
@@ -230,10 +231,12 @@ for phase, data_phase_out_flat in enumerate(data_phases_out_flat):
     # TODO: make sure user sees the right things, etc
     data_phase_out_flat = random.sample(data_phase_out_flat, len(data_phase_out_flat))
     tasks = [
-        data_phase_out_flat[i : i + docs_per_user]
+        data_tutorial + data_phase_out_flat[i : i + docs_per_user]
         for i in range(0, len(data_phase_out_flat), docs_per_user)
     ]
-    assert sum(len(task) for task in tasks) == len(data_phase_out_flat)
+    assert sum(len(task) for task in tasks) == len(data_phase_out_flat) + len(
+        tasks
+    ) * len(data_tutorial)
     data_pearmut = {
         "info": {
             "assignment": "task-based",
