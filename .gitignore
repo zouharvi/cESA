@@ -3,6 +3,7 @@
 cache/
 humeval/data/
 humeval/example_*.json
+humeval/preablation_*.json
 wmt25_genmt_assets
 
 # Byte-compiled / optimized / DLL files
