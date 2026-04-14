@@ -42,10 +42,6 @@ PHASES.append(
         ("en-ja_JP_#_speech_#_vid_HjRhgaz1xTI", 1),
         ("en-ja_JP_#_speech_#_vid_JIq55zBGNX4", 1),
         ("en-ja_JP_#_speech_#_vid_JoTLTGv8kqA", 1),
-    ]
-)
-PHASES.append(
-    [
         ("en-ja_JP_#_news_#_brisbanetimes.com.au.306576", 6),
         ("en-ja_JP_#_news_#_guardian.228996", 6),
         ("en-ja_JP_#_social_#_114151944720213193", 7),
@@ -70,10 +66,6 @@ PHASES.append(
         ("en-ja_JP_#_speech_#_vid_Si9CnnVI8sk", 1),
         ("en-ja_JP_#_speech_#_vid_YTxmx8hyJtA", 1),
         ("en-ja_JP_#_speech_#_vid__S0GOwEJXUA", 1),
-    ]
-)
-PHASES.append(
-    [
         ("en-ja_JP_#_news_#_newrepublic.com.12623", 2),
         ("en-ja_JP_#_news_#_nytimes.153341", 5),
         ("en-ja_JP_#_social_#_114174389242714730", 6),
@@ -162,28 +154,28 @@ with open("/home/vilda/pearmut/examples/tutorials/esa_jaen.json", "r") as f:
 
 
 for phase, data_phase_out in enumerate(data_phases_out_flat):
-    num_users = 5
+    num_users = 3
     data_phase_out: list[list[DocAll]]
     tasks = [[] for _ in range(num_users)]
     for data_item in data_phase_out:
         data_item: list[DocAll]
         # sort by fewest segments to most segments so that we assign the longest ones last (to make sure we don't end up with a long one at the end that doesn't fit in any user's queue)
-        tasks.sort(key=lambda task: sum([len(doc) for doc in task]))
+        tasks.sort(key=lambda task: sum([sum([len(item["src_text"].split()) for item in doc]) for doc in task]))
         tasks_to_expand = tasks[:len(data_item)]
         # make sure that we assign different conditions of the same doc to different users
         for task, data_item_config in zip(tasks_to_expand, data_item):
             data_item_config: DocAll
             task.extend(data_item_config)
 
-    print([len(task) for task in tasks])
-    print(f"{statistics.mean([
+    print(" | ".join([
+        f"{len(task)}doc {sum(len(doc) for doc in task)}seg {sum([len(item["src_text"].split()) * len(item["tgt"]) * time_per_word for doc in task for item in doc]) / (60 * 60):.1f}h"
+        for task in tasks
+    ]))
+    phase_total = sum([
         sum([len(item["src_text"].split()) * len(item["tgt"]) * time_per_word for doc in task for item in doc])
         for task in tasks
-    ]) / (60 * 60):.1f} hours per user")
-    print(f"{sum([
-        sum([len(item["src_text"].split()) * len(item["tgt"]) * time_per_word for doc in task for item in doc])
-        for task in tasks
-    ]) / (60 * 60) * 2:.1f} hours total")
+    ]) / (60 * 60)
+    print(f"{phase_total*2:.0f}h = {phase_total:.0f}h+{phase_total:.0f}h total")
     print()
 
     # shuffle queue
