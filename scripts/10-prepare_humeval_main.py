@@ -165,8 +165,8 @@ DocAll = list[Doc]
 data_phases_out_flat = []
 for phase, data_phase in enumerate(data_phases):
     data_phase_out: list[list[DocAll]] = []
+    random.seed(0)
     for data_doc in data_phase:
-        random.seed(0)
         data_item: list[DocAll] = []
         for contrastive_k in [1, 2, 3, 4]:
             # we might have to dip into duplicate models, so we sample from the doubled list
@@ -198,7 +198,7 @@ for phase, data_phase in enumerate(data_phases):
                                 "tgt": {
                                     model: item["tgt"][model] for model in model_group
                                 },
-                                "doc": item["doc"] + f"-dup{dup_i}",
+                                "item_id": item["doc"] + f"_#_s{item_i}_#_dup{dup_i}",
                             }
                         )
                     data_item_config.append(data_doc_local)
@@ -282,11 +282,11 @@ for phase, data_phase_out in enumerate(data_phases_out_flat):
             # },
             "instructions": instructions,
         },
-        "campaign_id": f"mock_phase{phase}",
+        "campaign_id": f"main_cESA_phase{phase+1}",
         "data": tasks,
     }
 
-    with open(f"../humeval/example_cESA_phase{phase}.json", "w") as f:
+    with open(f"../humeval/main_cESA_phase{phase+1}.json", "w") as f:
         json.dump(data_pearmut, f, indent=4, ensure_ascii=False)
 
 # %%

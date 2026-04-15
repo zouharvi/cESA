@@ -100,8 +100,8 @@ DocAll = list[Doc]
 data_phases_out_flat = []
 for phase, data_phase in enumerate(data_phases):
     data_phase_out: list[list[DocAll]] = []
+    random.seed(0)
     for data_doc in data_phase:
-        random.seed(0)
         data_item: list[DocAll] = []
         # add one random duplicate model
         models = random.sample(MODELS, len(MODELS)) + random.sample(MODELS, 1)
@@ -125,7 +125,7 @@ for phase, data_phase in enumerate(data_phases):
                             "tgt": {
                                 model: item["tgt"][model]
                             },
-                            "doc": item["doc"] + f"-dup{dup_i}",
+                            "item_id": item["doc"] + f"_#_s{item_i}_#_dup{dup_i}",
                         }
                     )
                 data_item_config.append(data_doc_local)
@@ -141,9 +141,6 @@ for phase, data_phase in enumerate(data_phases):
     print(f"Phase time: {time / (60 * 60) * 2:.1f} hours per all configurations")
     data_phases_out_flat.append(data_phase_out)
 
-# %%
-import statistics
-
 
 with open("/home/vilda/pearmut/examples/tutorials/cesa_jaen.json", "r") as f:
     data_tutorial_cesa = json.load(f)["data"][0]
@@ -153,7 +150,7 @@ with open("/home/vilda/pearmut/examples/tutorials/esa_jaen.json", "r") as f:
     data_tutorial_esa = json.load(f)["data"][0]
 
 
-for phase, data_phase_out in enumerate(data_phases_out_flat):
+for phase, (phase_name, data_phase_out) in enumerate(zip(["1+2", "3+4"], data_phases_out_flat)):
     num_users = 3
     data_phase_out: list[list[DocAll]]
     tasks = [[] for _ in range(num_users)]
@@ -191,7 +188,7 @@ for phase, data_phase_out in enumerate(data_phases_out_flat):
             #     "destination": "assets/wmt25_genmt_assets",
             # },
         },
-        "campaign_id": f"preablation_cESA_phase{phase}",
+        "campaign_id": f"preablation_cESA_phase{phase_name}",
         "data": [
             list(data_tutorial_cesa) + task
             for task in tasks
@@ -206,18 +203,18 @@ for phase, data_phase_out in enumerate(data_phases_out_flat):
             #     "destination": "assets/wmt25_genmt_assets",
             # },
         },
-        "campaign_id": f"preablation_ESA_phase{phase}",
+        "campaign_id": f"preablation_ESA_phase{phase_name}",
         "data": [
             list(data_tutorial_esa) + task
             for task in tasks
         ],
     }
 
-    with open(f"../humeval/preablation_cESA_phase{phase}.json", "w") as f:
+    with open(f"../humeval/preablation_cESA_phase{phase_name}.json", "w") as f:
         json.dump(data_pearmut_cesa, f, indent=4, ensure_ascii=False)
 
 
-    with open(f"../humeval/preablation_ESA_phase{phase}.json", "w") as f:
+    with open(f"../humeval/preablation_ESA_phase{phase_name}.json", "w") as f:
         json.dump(data_pearmut_esa, f, indent=4, ensure_ascii=False)
 
 # %%
@@ -234,3 +231,17 @@ zipfile.ZipFile(
         ).content
     )
 ).extractall("../humeval/wmt25_genmt_assets")
+
+# %%
+
+# sanity check
+
+with open(f"../humeval/preablation_cESA_phase1+2.json", "r") as f:
+    data = json.load(f)["data"]
+
+for user, data_user in enumerate(data):
+    print(len(data_user))
+    for doc in data_user:
+        # if "item_name"
+        print(doc[0]["item_id"].replace("_#_s0", "") + "_#_" + list(doc[0]["tgt"].keys())[0])
+    print()
