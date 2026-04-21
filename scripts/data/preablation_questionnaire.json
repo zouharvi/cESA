@@ -1,0 +1,30 @@
+[
+    {
+        "text": "Thank you for completing the evaluation phase! Please answer a few questions before proceeding.",
+        "form": null
+    },
+    {
+        "text": "The guidelines were clear and explanatory.<br>(1=strongly disagree, 5=strongly agree)",
+        "form": "number"
+    },
+    {
+        "text": "The scoring scale provided the appropriate level of precision to capture differences in translation quality.<br>(1=strongly disagree, 5=strongly agree)",
+        "form": "number"
+    },
+    {
+        "text": "Synthesizing the identified errors into a final translation score was straightforward.<br>(1=strongly disagree, 5=strongly agree)",
+        "form": "number"
+    },
+    {
+        "text": "The interface was easy to use.<br>(1=strongly disagree, 5=strongly agree)",
+        "form": "number"
+    },
+    {
+        "text": "The interface was fast to use.<br>(1=strongly disagree, 5=strongly agree)",
+        "form": "number"
+    },
+    {
+        "text": "Overall, the interface was enjoyable to use.<br>(1=strongly disagree, 5=strongly agree)",
+        "form": "number"
+    }
+]

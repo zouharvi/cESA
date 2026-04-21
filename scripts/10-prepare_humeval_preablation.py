@@ -122,9 +122,7 @@ for phase, data_phase in enumerate(data_phases):
                         {
                             "src": src,
                             "src_text": item["src"],
-                            "tgt": {
-                                model: item["tgt"][model]
-                            },
+                            "tgt": {model: item["tgt"][model]},
                             "item_id": item["doc"] + f"_#_s{item_i}_#_dup{dup_i}",
                         }
                     )
@@ -145,34 +143,55 @@ for phase, data_phase in enumerate(data_phases):
 with open("/home/vilda/pearmut/examples/tutorials/cesa_jaen.json", "r") as f:
     data_tutorial_cesa = json.load(f)["data"][0]
 
+with open("data/preablation_questionnaire.json", "r") as f:
+    data_preablation_questionnaire = json.load(f)
+
 
 with open("/home/vilda/pearmut/examples/tutorials/esa_jaen.json", "r") as f:
     data_tutorial_esa = json.load(f)["data"][0]
 
 
-for phase, (phase_name, data_phase_out) in enumerate(zip(["1+2", "3+4"], data_phases_out_flat)):
+for phase, (phase_name, data_phase_out) in enumerate(
+    zip(["1+2", "3+4"], data_phases_out_flat)
+):
     num_users = 3
     data_phase_out: list[list[DocAll]]
     tasks = [[] for _ in range(num_users)]
     for data_item in data_phase_out:
         data_item: list[DocAll]
         # sort by fewest segments to most segments so that we assign the longest ones last (to make sure we don't end up with a long one at the end that doesn't fit in any user's queue)
-        tasks.sort(key=lambda task: sum([sum([len(item["src_text"].split()) for item in doc]) for doc in task]))
-        tasks_to_expand = tasks[:len(data_item)]
+        tasks.sort(
+            key=lambda task: sum(
+                [sum([len(item["src_text"].split()) for item in doc]) for doc in task]
+            )
+        )
+        tasks_to_expand = tasks[: len(data_item)]
         # make sure that we assign different conditions of the same doc to different users
         for task, data_item_config in zip(tasks_to_expand, data_item):
             data_item_config: DocAll
             task.extend(data_item_config)
 
-    print(" | ".join([
-        f"{len(task)}doc {sum(len(doc) for doc in task)}seg {sum([len(item["src_text"].split()) * len(item["tgt"]) * time_per_word for doc in task for item in doc]) / (60 * 60):.1f}h"
-        for task in tasks
-    ]))
-    phase_total = sum([
-        sum([len(item["src_text"].split()) * len(item["tgt"]) * time_per_word for doc in task for item in doc])
-        for task in tasks
-    ]) / (60 * 60)
-    print(f"{phase_total*2:.0f}h = {phase_total:.0f}h+{phase_total:.0f}h total")
+    print(
+        " | ".join(
+            [
+                f"{len(task)}doc {sum(len(doc) for doc in task)}seg {sum([len(item['src_text'].split()) * len(item['tgt']) * time_per_word for doc in task for item in doc]) / (60 * 60):.1f}h"
+                for task in tasks
+            ]
+        )
+    )
+    phase_total = sum(
+        [
+            sum(
+                [
+                    len(item["src_text"].split()) * len(item["tgt"]) * time_per_word
+                    for doc in task
+                    for item in doc
+                ]
+            )
+            for task in tasks
+        ]
+    ) / (60 * 60)
+    print(f"{phase_total * 2:.0f}h = {phase_total:.0f}h+{phase_total:.0f}h total")
     print()
 
     # shuffle queue
@@ -190,7 +209,7 @@ for phase, (phase_name, data_phase_out) in enumerate(zip(["1+2", "3+4"], data_ph
         },
         "campaign_id": f"preablation_cESA_phase{phase_name}",
         "data": [
-            list(data_tutorial_cesa) + task
+            list(data_tutorial_cesa) + task + [data_preablation_questionnaire]
             for task in tasks
         ],
     }
@@ -205,14 +224,13 @@ for phase, (phase_name, data_phase_out) in enumerate(zip(["1+2", "3+4"], data_ph
         },
         "campaign_id": f"preablation_ESA_phase{phase_name}",
         "data": [
-            list(data_tutorial_esa) + task
+            list(data_tutorial_esa) + task + [data_preablation_questionnaire]
             for task in tasks
         ],
     }
 
     with open(f"../humeval/preablation_cESA_phase{phase_name}.json", "w") as f:
         json.dump(data_pearmut_cesa, f, indent=4, ensure_ascii=False)
-
 
     with open(f"../humeval/preablation_ESA_phase{phase_name}.json", "w") as f:
         json.dump(data_pearmut_esa, f, indent=4, ensure_ascii=False)
@@ -236,12 +254,16 @@ zipfile.ZipFile(
 
 # sanity check
 
-with open(f"../humeval/preablation_cESA_phase1+2.json", "r") as f:
+with open("../humeval/preablation_cESA_phase1+2.json", "r") as f:
     data = json.load(f)["data"]
 
 for user, data_user in enumerate(data):
     print(len(data_user))
     for doc in data_user:
         # if "item_name"
-        print(doc[0]["item_id"].replace("_#_s0", "") + "_#_" + list(doc[0]["tgt"].keys())[0])
+        print(
+            doc[0]["item_id"].replace("_#_s0", "")
+            + "_#_"
+            + list(doc[0]["tgt"].keys())[0]
+        )
     print()
