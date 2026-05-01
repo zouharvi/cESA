@@ -238,7 +238,7 @@ with open("/home/vilda/pearmut/examples/tutorials/cesa_jaen.json", "r") as f:
 
 
 for phase, data_phase_out in enumerate(data_phases_out_flat):
-    num_users = 40
+    num_users = 15
     data_phase_out: list[list[DocAll]]
     tasks = [[] for _ in range(num_users)]
     for data_item in data_phase_out:

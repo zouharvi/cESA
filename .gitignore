@@ -2,6 +2,7 @@
 .env
 cache/
 humeval/data/
+humeval/main_*.json
 humeval/example_*.json
 humeval/preablation_*.json
 wmt25_genmt_assets
