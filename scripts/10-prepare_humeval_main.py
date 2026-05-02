@@ -245,21 +245,39 @@ for phase, data_phase_out in enumerate(data_phases_out_flat):
         data_item: list[DocAll]
         # sort by fewest segments to most segments so that we assign the longest ones last (to make sure we don't end up with a long one at the end that doesn't fit in any user's queue)
         tasks.sort(key=lambda task: sum([len(doc) for doc in task]))
-        tasks_to_expand = tasks[:len(data_item)]
+        tasks_to_expand = tasks[: len(data_item)]
         # make sure that we assign different conditions of the same doc to different users
         for task, data_item_config in zip(tasks_to_expand, data_item):
             data_item_config: DocAll
             task.extend(data_item_config)
 
     print([len(task) for task in tasks])
-    print(f"{statistics.mean([
-        sum([len(item["src_text"].split()) * len(item["tgt"]) * time_per_word for doc in task for item in doc])
-        for task in tasks
-    ]) / (60 * 60):.1f} hours per user")
-    print(f"{sum([
-        sum([len(item["src_text"].split()) * len(item["tgt"]) * time_per_word for doc in task for item in doc])
-        for task in tasks
-    ]) / (60 * 60):.1f} hours total")
+    time = statistics.mean(
+        [
+            sum(
+                [
+                    len(item["src_text"].split()) * len(item["tgt"]) * time_per_word
+                    for doc in task
+                    for item in doc
+                ]
+            )
+            for task in tasks
+        ]
+    ) / (60 * 60)
+    print(f"{time:.1f} hours per user")
+    time = sum(
+        [
+            sum(
+                [
+                    len(item["src_text"].split()) * len(item["tgt"]) * time_per_word
+                    for doc in task
+                    for item in doc
+                ]
+            )
+            for task in tasks
+        ]
+    ) / (60 * 60)
+    print(f"{time:.1f} hours total")
     print()
 
     # shuffle queue
@@ -267,10 +285,7 @@ for phase, data_phase_out in enumerate(data_phases_out_flat):
         random.shuffle(task)
 
     # prepend tutorial
-    tasks = [
-        list(data_tutorial) + task
-        for task in tasks
-    ]
+    tasks = [list(data_tutorial) + task for task in tasks]
 
     data_pearmut = {
         "info": {
@@ -282,11 +297,11 @@ for phase, data_phase_out in enumerate(data_phases_out_flat):
             # },
             "instructions": instructions,
         },
-        "campaign_id": f"main_cESA_phase{phase+1}",
+        "campaign_id": f"main_cESA_phase{phase + 1}",
         "data": tasks,
     }
 
-    with open(f"../humeval/main_cESA_phase{phase+1}.json", "w") as f:
+    with open(f"../humeval/main_cESA_phase{phase + 1}.json", "w") as f:
         json.dump(data_pearmut, f, indent=4, ensure_ascii=False)
 
 # %%
@@ -303,3 +318,22 @@ zipfile.ZipFile(
         ).content
     )
 ).extractall("../humeval/wmt25_genmt_assets")
+
+# %%
+import json
+
+# sanity check
+
+with open("../humeval/main_cESA_phase1.json", "r") as f:
+    data = json.load(f)["data"]
+
+for user, data_user in enumerate(data):
+    print(len(data_user))
+    for doc in data_user:
+        # if "item_name"
+        print(
+            doc[0]["item_id"].replace("_#_s0", "")
+            + "_#_"
+            + str(list(doc[0]["tgt"].keys()))
+        )
+    print()
