@@ -1,6 +1,8 @@
 # added by zouharvi
 .env
 cache/
+# TODO: remove this for publication
+humeval/collected/
 humeval/data/
 humeval/main_*.json
 humeval/example_*.json
