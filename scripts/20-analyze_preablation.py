@@ -26,7 +26,7 @@ import collections
 def compute_times(actions):
     times = sorted([x["time"] for x in actions])
     deltas = [(times[i] - times[i - 1]) for i in range(1, len(times))]
-    return sum([min(60, delta) for delta in deltas])
+    return sum([delta if delta < 3 * 60 else 30 for delta in deltas if delta])
 
 
 def analyze_protocol(data):
