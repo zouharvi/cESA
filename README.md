@@ -12,6 +12,7 @@ Documentation WIP.
 > [!NOTE]  
 > This repository does not contain the Pearmut annotation interface, which can be found at [github.com/zouharvi/pearmut](https://github.com/zouharvi/pearmut).
 > This repository only contains scripts to generate and analyze data for the cESA paper.
+> To use cESA, specifiy `"protocol": "cESA"` in Pearmut.
 
 To reproduce the human evaluation setup, run:
 ```bash
