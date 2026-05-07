@@ -22,11 +22,12 @@ with open("../humeval/collected/preablation.json", "r") as f:
 import statistics
 import collections
 import matplotlib.pyplot as plt
+import evaluation_contrastive.utils_fig
 import os
 import numpy as np
-import evaluation_contrastive.utils_fig
 import scipy.stats
 import random
+import itertools
 
 os.makedirs("computed/img/", exist_ok=True)
 
@@ -61,44 +62,56 @@ def analyze_protocol(data, key):
     segments = sum([len(doc["item"]) for doc in data])
     print("Count:", len(data))
     times = [compute_times(doc["actions"]) for doc in data]
-    print("Time (avg/doc):", f"{statistics.mean(times) / 60:.1f}", "minutes")
-    print("Time (avg/seg):", f"{statistics.mean(times) / segments / 60:.1f}", "minutes")
     words = [sum([len(seg["src_text"].split()) for seg in doc["item"]]) for doc in data]
     print("Time (avg/word):", f"{sum(times) / sum(words):.3f}", "s")
 
-    model_scores = collections.defaultdict(dict)
-    model_errors = collections.defaultdict(dict)
-    duplicate_annotations = []
+    model_scores = collections.defaultdict(lambda: collections.defaultdict(list))
+    model_scores_user = collections.defaultdict(list)
     for doc in data:
         for item, item_ann in zip(doc["item"], doc["annotation"]):
             item_id = item["item_id"]
             for model, annotation in item_ann.items():
-                if item_id in model_scores[model]:
-                    duplicate_annotations.append(
-                        [
-                            model_scores[model][item_id],
-                            annotation["score"],
-                        ]
-                    )
-                    model_scores[model][item_id] = (
-                        annotation["score"] + model_scores[model][item_id]
-                    ) / 2
-                else:
-                    model_scores[model][item_id] = annotation["score"]
-                model_errors[model][item_id] = len(annotation["error_spans"])
-    model_scores_avg = {k: statistics.mean(v.values()) for k, v in model_scores.items()}
-    model_errors_avg = {k: statistics.mean(v.values()) for k, v in model_errors.items()}
+                model_scores_user[(doc["user_id"], item_id, model)].append(
+                    annotation["score"]
+                )
+                model_scores_user[("all", item_id, model)].append(annotation["score"])
+                model_scores[model][item_id].append(annotation["score"])
+    model_scores_avg = {
+        model: statistics.mean([statistics.mean(ll) for ll in model_v.values()])
+        for model, model_v in model_scores.items()
+    }
     print("Average score by model:", model_scores_avg)
-    print("Overall average score:", f"{statistics.mean(model_scores_avg.values()):.2f}")
-    print("Overall errors:", f"{statistics.mean(model_errors_avg.values()):.2f}")
 
-    # TODO: inter- and intra-annotator agreement
+    # compute inter-annotator agreement
+    inter_aa_mse = statistics.mean(
+        [
+            abs(a - b)
+            for (
+                user,
+                _item,
+                _model,
+            ), duplicate_annotations_user in model_scores_user.items()
+            if user == "all" and len(duplicate_annotations_user) >= 2
+            for a, b in itertools.combinations(duplicate_annotations_user, 2)
+        ]
+    )
 
     # compute intra-annotator agreement
-    intra_aa_mse = statistics.mean([abs(a - b) for a, b in duplicate_annotations])
+    intra_aa_mse = statistics.mean(
+        [
+            abs(a - b)
+            for (
+                user,
+                _item,
+                _model,
+            ), duplicate_annotations_user in model_scores_user.items()
+            if user != "all" and len(duplicate_annotations_user) >= 2
+            for a, b in itertools.combinations(duplicate_annotations_user, 2)
+        ]
+    )
 
     # compute stability
-    model_scores_avg = {k: statistics.mean(v.values()) for k, v in model_scores.items()}
+    # model_scores_avg = {k: statistics.mean(v.values()) for k, v in model_scores.items()}
     item_ids = list(
         {
             item_id
@@ -117,16 +130,18 @@ def analyze_protocol(data, key):
                 for model, v in model_scores.items()
             }
             model_scores_avg_local = {
-                model: statistics.mean(v.values()) if v.values() else 0
-                for model, v in model_scores_local.items()
+                model: statistics.mean([statistics.mean(ll) for ll in model_v.values()])
+                if model_v.values()
+                else 0
+                for model, model_v in model_scores_local.items()
             }
             stability_taus.append(
                 compute_kendalltau(model_scores_avg, model_scores_avg_local)
             )
 
     # plot histogram of model scores
-    scores_all = [x for ll in model_scores.values() for x in ll.values()]
-    plt.figure(figsize=(2.5, 1))
+    scores_all = [x for ll in model_scores.values() for y in ll.values() for x in y]
+    plt.figure(figsize=(3.2, 1))
     plt.hist(
         scores_all,
         bins=np.linspace(0, 100, 21),
@@ -141,7 +156,7 @@ def analyze_protocol(data, key):
 
     results[key] = {
         "time": f"{sum(times) / segments:.1f}s",
-        "inter-aa": "TODO",
+        "inter-aa": f"{inter_aa_mse:.0f}",
         "intra-aa": f"{intra_aa_mse:.0f}",
         "stability": f"{statistics.mean(stability_taus):.3f}",
     }

@@ -37,4 +37,4 @@ build-backend = "setuptools.build_meta"
 # pip install -e . --config-settings editable_mode=strict
 
 [tool.ruff.lint]
-ignore = ["E402"]
+ignore = ["E402", "F401"]
