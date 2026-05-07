@@ -170,14 +170,25 @@ for phase, data_phase in enumerate(data_phases):
         data_item: list[DocAll] = []
         for contrastive_k in [1, 2, 3, 4]:
             # we might have to dip into duplicate models, so we sample from the doubled list
-            models = []
-            models += random.sample(MODELS, len(MODELS))
-            models += random.sample(MODELS, len(MODELS))
-            models_groups = []
-            # even for standard ESA add +2 duplicate for intra AA because they divide 10
-            while sum(len(models) for models in models_groups) < 12:
-                models_groups.append(models[:contrastive_k])
-                models = models[contrastive_k:]
+            while True:
+                models = []
+                models += random.sample(MODELS, len(MODELS))
+                models += random.sample([model + "'" for model in MODELS], 2)
+                random.shuffle(models)
+                models_groups = []
+                # even for standard ESA add +2 duplicate for intra AA because they divide 10
+                while sum(len(models) for models in models_groups) < 12:
+                    models_groups.append(models[:contrastive_k])
+                    models = models[contrastive_k:]
+                assert len(models) == 0
+                # ensure we don't show the same model twice in the same screen
+                if all(
+                    len({model.removesuffix("'") for model in model_group})
+                    == contrastive_k
+                    for model_group in models_groups
+                ):
+                    break
+
             for dup_i in [0, 1]:
                 data_item_config: DocAll = []
                 for model_group in models_groups:
@@ -196,7 +207,8 @@ for phase, data_phase in enumerate(data_phases):
                                 "src": src,
                                 "src_text": item["src"],
                                 "tgt": {
-                                    model: item["tgt"][model] for model in model_group
+                                    model: item["tgt"][model.removesuffix("'")]
+                                    for model in model_group
                                 },
                                 "item_id": item["doc"] + f"_#_s{item_i}_#_dup{dup_i}",
                             }
@@ -297,7 +309,7 @@ for phase, data_phase_out in enumerate(data_phases_out_flat):
             # },
             "instructions": instructions,
         },
-        "campaign_id": f"main_cESA_phase{phase + 1}",
+        "campaign_id": f"main_cESA_phase{phase + 1}_v2",
         "data": tasks,
     }
 
