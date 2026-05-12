@@ -61,6 +61,8 @@ def analyze_protocol(data, key):
     ]
     segments = sum([len(doc["item"]) for doc in data])
     print("Count:", len(data))
+    if not data:
+        return
     times = [compute_times(doc["actions"]) for doc in data]
     words = [sum([len(seg["src_text"].split()) for seg in doc["item"]]) for doc in data]
     print("Time (avg/word):", f"{sum(times) / sum(words):.3f}", "s")
@@ -164,6 +166,9 @@ def analyze_protocol(data, key):
 
 print("ESA")
 analyze_protocol(data_ESA, "small-esa")
+
+print("cESA")
+analyze_protocol(data_cESA, "small-cesa")
 
 with open("computed/analysis.json", "w") as f:
     json.dump(results, f, indent=2)
