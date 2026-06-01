@@ -309,11 +309,11 @@ for phase, data_phase_out in enumerate(data_phases_out_flat):
             # },
             "instructions": instructions,
         },
-        "campaign_id": f"main_cESA_phase{phase + 1}_v2",
+        "campaign_id": f"main_cESA_phase{phase + 1}_v2_enja",
         "data": tasks,
     }
 
-    with open(f"../humeval/main_cESA_phase{phase + 1}.json", "w") as f:
+    with open(f"../humeval/main_enja_ESA_phase{phase + 1}.json", "w") as f:
         json.dump(data_pearmut, f, indent=4, ensure_ascii=False)
 
 # %%
