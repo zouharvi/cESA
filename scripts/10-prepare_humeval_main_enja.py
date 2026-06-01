@@ -208,6 +208,7 @@ for phase, data_phase in enumerate(data_phases):
                                 "src_text": item["src"],
                                 "tgt": {
                                     model: item["tgt"][model.removesuffix("'")]
+                                    # TODO: unescape newlines like in enja
                                     for model in model_group
                                 },
                                 "item_id": item["doc"] + f"_#_s{item_i}_#_dup{dup_i}",

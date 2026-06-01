@@ -250,7 +250,7 @@ with open("/home/vilda/pearmut/examples/tutorials/cesa_iten.json", "r") as f:
 
 
 for phase, data_phase_out in enumerate(data_phases_out_flat):
-    num_users = 15
+    num_users = 12
     data_phase_out: list[list[DocAll]]
     tasks = [[] for _ in range(num_users)]
     for data_item in data_phase_out:
@@ -309,7 +309,7 @@ for phase, data_phase_out in enumerate(data_phases_out_flat):
             # },
             "instructions": instructions,
         },
-        "campaign_id": f"main_cESA_phase{phase + 1}_v3_enit",
+        "campaign_id": f"main_cESA_phase{phase + 1}_v4_enit",
         "data": tasks,
     }
     
