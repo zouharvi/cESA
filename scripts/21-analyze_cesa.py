@@ -1,4 +1,18 @@
 # %%
+import collections
+import json
+
+data_cESA_k = collections.defaultdict(list)
+with open("../humeval/collected/main_enit.json", "r") as f:
+    data_raw = json.load(f)
+    for campaign_name, campaign_data in data_raw.items():
+        for item in campaign_data:
+            k = len(item["item"][0]["tgt"])
+            protocol = "cESA_k" + str(k)
+            item["protocol"] = protocol
+            data_cESA_k[k].append(item)
+
+# %%
 import numpy as np
 import matplotlib.pyplot as plt
 import evaluation_contrastive.utils_fig
@@ -15,7 +29,7 @@ def plot(key):
     plt.figure(figsize=(2, 1))
     plt.hist(
         scores,
-        bins=np.linspace(0, 100, 21),
+        bins=list(np.linspace(0, 100, 21)),
         width=10,
         color="black",
     )
