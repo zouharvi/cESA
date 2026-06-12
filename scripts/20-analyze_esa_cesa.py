@@ -2,32 +2,44 @@
 
 import json
 import collections
+import os
 
-data = []
-data_cESA = []
-data_ESA = []
-with open("../humeval/collected/preablation.json", "r") as f:
+os.chdir(os.path.dirname(__file__)+"/../")
+
+small_enja = collections.defaultdict(list)
+with open("humeval/collected/preablation_enja.json", "r") as f:
     data_raw = json.load(f)
     for campaign_name, campaign_data in data_raw.items():
         protocol = "cESA" if "cESA" in campaign_name else "ESA"
         for item in campaign_data:
-            item["protocol"] = protocol
+            item["protocol"] = f"small-enja-{protocol}"
 
-        data += campaign_data
-        if protocol == "cESA":
-            data_cESA += campaign_data
-        else:
-            data_ESA += campaign_data
+        small_enja[protocol] += campaign_data
 
-data_cESA_k = collections.defaultdict(list)
-with open("../humeval/collected/main_enit.json", "r") as f:
+big_enja_cESA_k = collections.defaultdict(list)
+with open("humeval/collected/main_enja.json", "r") as f:
     data_raw = json.load(f)
     for campaign_name, campaign_data in data_raw.items():
         for item in campaign_data:
+            if item["annotation"] == "__RESET__":
+                continue
             k = len(item["item"][0]["tgt"])
-            protocol = "cESA_k" + str(k)
+            protocol = f"big-enja-cESA{k}"
             item["protocol"] = protocol
-            data_cESA_k[k].append(item)
+            big_enja_cESA_k[k].append(item)
+
+
+big_enit_cESA_k = collections.defaultdict(list)
+with open("humeval/collected/main_enit.json", "r") as f:
+    data_raw = json.load(f)
+    for campaign_name, campaign_data in data_raw.items():
+        for item in campaign_data:
+            if item["annotation"] == "__RESET__":
+                continue
+            k = len(item["item"][0]["tgt"])
+            protocol = f"big-enit-cESA{k}"
+            item["protocol"] = protocol
+            big_enit_cESA_k[k].append(item)
 
 # %%
 import statistics
@@ -40,7 +52,6 @@ import random
 import itertools
 
 os.makedirs("computed/img/", exist_ok=True)
-
 
 def compute_times(actions):
     times = sorted([x["time"] for x in actions])
@@ -63,6 +74,7 @@ def compute_kendalltau(model_scores1, model_scores2):
 
 
 def analyze_protocol(data, key, k=1):
+    print("\n"+key)
     data = [
         doc
         for doc in data
@@ -83,10 +95,12 @@ def analyze_protocol(data, key, k=1):
         for item, item_ann in zip(doc["item"], doc["annotation"]):
             item_id = item["item_id"]
             for model, annotation in item_ann.items():
+                # TODO: figure out IAA better
+                model = model.removesuffix("'")
+                model_scores_user[("all", item_id, model)].append(annotation["score"])
                 model_scores_user[(doc["user_id"], item_id, model)].append(
                     annotation["score"]
                 )
-                model_scores_user[("all", item_id, model)].append(annotation["score"])
                 model_scores[model][item_id].append(annotation["score"])
     model_scores_avg = {
         model: statistics.mean([statistics.mean(ll) for ll in model_v.values()])
@@ -172,30 +186,43 @@ def analyze_protocol(data, key, k=1):
     plt.savefig(f"computed/img/{key}_scores.svg", transparent=True)
 
     results[key] = {
-        "time": f"{sum(times) / segments / k:.1f}s",
+        "time_perseg": f"{sum(times) / segments / k:.1f}s",
+        "time_perword": f"{sum(times) / sum(words) / k:.3f}s",
         "inter-aa": f"{inter_aa_mse:.1f}",
         "intra-aa": f"{intra_aa_mse:.1f}",
         "stability": f"{statistics.mean(stability_taus):.3f}",
+        "model_ranking": {model: mean for model, mean in sorted(model_scores_avg.items(), key=lambda x: x[1], reverse=True)},
+        # TODO: clusters?
     }
 
+analyze_protocol(small_enja["ESA"], "small-enja-esa")
+analyze_protocol(small_enja["cESA"], "small-enja-cesa1")
+analyze_protocol(big_enja_cESA_k[1], "big-enja-cesa1", k=1)
+analyze_protocol(big_enja_cESA_k[2], "big-enja-cesa2", k=2)
+analyze_protocol(big_enja_cESA_k[3], "big-enja-cesa3", k=3)
+analyze_protocol(big_enja_cESA_k[4], "big-enja-cesa4", k=4)
+analyze_protocol(big_enit_cESA_k[1], "big-enit-cesa1", k=1)
+analyze_protocol(big_enit_cESA_k[2], "big-enit-cesa2", k=2)
+analyze_protocol(big_enit_cESA_k[3], "big-enit-cesa3", k=3)
+analyze_protocol(big_enit_cESA_k[4], "big-enit-cesa4", k=4)
 
-print("ESA")
-analyze_protocol(data_ESA, "small-esa")
-
-print("cESA")
-analyze_protocol(data_cESA, "small-cesa")
-
-print("cESA k=1")
-analyze_protocol(data_cESA_k[1], "cesa-k1", k=1)
-
-print("cESA k=2")
-analyze_protocol(data_cESA_k[2], "cesa-k2", k=2)
-
-print("cESA k=3")
-analyze_protocol(data_cESA_k[3], "cesa-k3", k=3)
-
-print("cESA k=4")
-analyze_protocol(data_cESA_k[4], "cesa-k4", k=4)
+# add model ordering across all big-enit-*
+results["big-enit-ordering"] = sorted(
+    results["big-enit-cesa1"]["model_ranking"].keys(),
+    key=lambda model: statistics.mean([
+        float(results[f"big-enit-cesa{k}"]["model_ranking"].get(model, 0))
+        for k in range(1, 4+1)
+    ]),
+    reverse=True,
+)
+results["big-enja-ordering"] = sorted(
+    results["big-enja-cesa1"]["model_ranking"].keys(),
+    key=lambda model: statistics.mean([
+        float(results[f"big-enja-cesa{k}"]["model_ranking"].get(model, 0))
+        for k in range(1, 4+1)
+    ]),
+    reverse=True,
+)
 
 with open("computed/analysis.json", "w") as f:
     json.dump(results, f, indent=2)

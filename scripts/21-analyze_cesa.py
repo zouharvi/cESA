@@ -1,16 +1,33 @@
 # %%
 import collections
 import json
+import os
 
-data_cESA_k = collections.defaultdict(list)
-with open("../humeval/collected/main_enit.json", "r") as f:
+os.chdir(os.path.dirname(__file__)+"/../")
+
+big_enja = collections.defaultdict(list)
+with open("humeval/collected/main_enja.json", "r") as f:
     data_raw = json.load(f)
     for campaign_name, campaign_data in data_raw.items():
         for item in campaign_data:
+            if item["annotation"] == "__RESET__":
+                continue
             k = len(item["item"][0]["tgt"])
-            protocol = "cESA_k" + str(k)
-            item["protocol"] = protocol
-            data_cESA_k[k].append(item)
+            item["protocol"] = k
+            big_enja[k].append(item)
+
+
+big_enit = collections.defaultdict(list)
+with open("humeval/collected/main_enit.json", "r") as f:
+    data_raw = json.load(f)
+    for campaign_name, campaign_data in data_raw.items():
+        for item in campaign_data:
+            if item["annotation"] == "__RESET__":
+                continue
+            k = len(item["item"][0]["tgt"])
+            item["protocol"] = k
+            big_enit[k].append(item)
+
 
 # %%
 import numpy as np
@@ -22,11 +39,19 @@ os.makedirs("computed/img", exist_ok=True)
 
 # position bias
 
-
-def plot(key):
-    scores = np.clip(np.random.normal(65, 30, 300), 0, 150)
-    scores = np.digitize(scores, np.arange(10, 100, 10)) * 10
-    plt.figure(figsize=(2, 1))
+def plot(data, key, pos):
+    scores = []
+    for doc in data:
+        for item, item_ann in zip(doc["item"], doc["annotation"]):
+            for model_i, (model, annotation) in enumerate(item_ann.items()):
+                if model_i != pos - 1:
+                    continue
+                if annotation["score"] is not None:
+                    scores.append(annotation["score"])
+    
+    # scores = np.clip(np.random.normal(65, 30, 300), 0, 150)
+    # scores = np.digitize(scores, np.arange(10, 100, 10)) * 10
+    plt.figure(figsize=(1.7, 1))
     plt.hist(
         scores,
         bins=list(np.linspace(0, 100, 21)),
@@ -35,7 +60,7 @@ def plot(key):
     )
     plt.axis("off")
     plt.ylim(0, len(scores) / 5)
-    mean = scores.mean()
+    mean = float(np.mean(scores))
     plt.text(
         mean,
         len(scores) / 5,
@@ -56,32 +81,124 @@ def plot(key):
     plt.savefig(f"computed/img/position_bias_{key}.svg", transparent=True)
 
 
-plot("k=1,1")
-plot("k=2,1")
-plot("k=2,2")
-plot("k=3,1")
-plot("k=3,2")
-plot("k=3,3")
-plot("k=4,1")
-plot("k=4,2")
-plot("k=4,3")
-plot("k=4,4")
+plot(big_enit[1], "enit,1,1", pos=1)
+plot(big_enit[2], "enit,2,1", pos=1)
+plot(big_enit[2], "enit,2,2", pos=2)
+plot(big_enit[3], "enit,3,1", pos=1)
+plot(big_enit[3], "enit,3,2", pos=2)
+plot(big_enit[3], "enit,3,3", pos=3)
+plot(big_enit[4], "enit,4,1", pos=1)
+plot(big_enit[4], "enit,4,2", pos=2)
+plot(big_enit[4], "enit,4,3", pos=3)
+plot(big_enit[4], "enit,4,4", pos=4)
+
+plot(big_enja[1], "enja,1,1", pos=1)
+plot(big_enja[2], "enja,2,1", pos=1)
+plot(big_enja[2], "enja,2,2", pos=2)
+plot(big_enja[3], "enja,3,1", pos=1)
+plot(big_enja[3], "enja,3,2", pos=2)
+plot(big_enja[3], "enja,3,3", pos=3)
+plot(big_enja[4], "enja,4,1", pos=1)
+plot(big_enja[4], "enja,4,2", pos=2)
+plot(big_enja[4], "enja,4,3", pos=3)
+plot(big_enja[4], "enja,4,4", pos=4)
 
 
 # %%
 import json
 import collections
+import itertools
+import sacrebleu
+import tqdm
 
 # similarity and dominance bias
 
-output = {}
+output = {
+    key: {
+        "similarity_mean": {},
+        "similarity_max": {},
+        "dominance_mean": {},
+        "dominance_max": {},
+    } for key in ["enja", "enit"]
+}
 
-for bias in ["similarity", "dominance"]:
-    output_col = collections.defaultdict(dict)
-    for k in [2, 3, 4]:
-        for sim in ["mean", "max"]:
-            output_col[sim][k] = f"{np.random.normal(0.5, 0.01):.1%}"
-    output[bias] = output_col
+CHRF = sacrebleu.metrics.chrf.CHRF()
+def chrf(s1, s2):
+    """Pairwise chrf for tgt similarity."""
+    return (CHRF.sentence_score(s1, [s2]).score + CHRF.sentence_score(s2, [s1]).score) / 2
+
+for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
+    for k in tqdm.tqdm([2, 3, 4]):
+        # collect "screens"
+        docs_to_screens = collections.defaultdict(list)
+        for item in data[k]:
+            for item_seg, item_ann in zip(item["item"], item["annotation"]):
+                screen = {}
+                for model, annotation in item_ann.items():
+                    if annotation["score"] is not None:
+                        screen[model.removesuffix("'")] = {"score": annotation["score"], "tgt": item_seg["tgt"][model]}
+                if len(screen) < 2:
+                    continue
+                if screen:
+                    docs_to_screens[item_seg["item_id"]].append(screen)
+        
+        for vvv in ["mean", "max"]:
+            results = []
+            for _doc, screens in docs_to_screens.items():
+                if len(screens) < 2:
+                    continue
+                for screen_a, screen_b in itertools.product(screens, screens):
+                    # model needs to be in both
+                    for model in screen_a.keys() & screen_b.keys():
+                        screen_a_sim = [
+                            chrf(model1_tgt, model2_tgt)
+                            for model1_tgt, model2_tgt in itertools.combinations(
+                                [v["tgt"] for v in screen_a.values()],
+                                2
+                            )
+                        ]
+                        screen_b_sim = [
+                            chrf(model1_tgt, model2_tgt)
+                            for model1_tgt, model2_tgt in itertools.combinations(
+                                [v["tgt"] for v in screen_b.values()],
+                                2
+                            )
+                        ]
+                        if vvv == "mean":
+                            screen_a_vvv = np.mean(screen_a_sim)
+                            screen_b_vvv = np.mean(screen_b_sim)
+                        elif vvv == "max":
+                            screen_a_vvv = np.max(screen_a_sim)
+                            screen_b_vvv = np.max(screen_b_sim)
+                        else:
+                            raise ValueError(vvv)
+
+                        # check if higher similarity is causing the model score to be lower
+                        results.append(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] < screen_b[model]["score"])
+
+                output[data_key]["similarity_" + vvv][k] = np.mean(results)
+
+            # compute dominance
+            results = []
+            for _doc, screens in docs_to_screens.items():
+                if len(screens) < 2:
+                    continue
+                for screen_a, screen_b in itertools.product(screens, screens):
+                    # model needs to be in both
+                    for model in screen_a.keys() & screen_b.keys():
+                        if vvv == "mean":
+                            screen_a_vvv = np.mean([v["score"] for v in screen_a.values()])
+                            screen_b_vvv = np.mean([v["score"] for v in screen_b.values()])
+                        elif vvv == "max":
+                            screen_a_vvv = np.max([v["score"] for v in screen_a.values()])
+                            screen_b_vvv = np.max([v["score"] for v in screen_b.values()])
+                        else:
+                            raise ValueError(vvv)
+
+                        # check if dominance is causing the model score to be lower
+                        results.append(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] < screen_b[model]["score"])
+
+                output[data_key]["dominance_" + vvv][k] = np.mean(results)
 
 with open("computed/similarity_dominance_bias.json", "w") as f:
     json.dump(output, f, indent=2)
@@ -90,6 +207,8 @@ with open("computed/similarity_dominance_bias.json", "w") as f:
 # %%
 
 # annotation sequence pattern
+
+# TODO:
 
 # score, error
 output = []
@@ -111,5 +230,3 @@ output = [[(f"{x[0]:.1f}", f"{x[1]:.1f}") for x in y] for y in output]
 
 with open("computed/sequence_pattern.json", "w") as f:
     json.dump(output, f, indent=2)
-
-# %%

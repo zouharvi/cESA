@@ -1,6 +1,6 @@
 # %%
 
-import subset2evaluate.utils
+import subset2evaluate.utils # type: ignore
 import collections
 import random
 import json
