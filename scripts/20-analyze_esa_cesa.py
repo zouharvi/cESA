@@ -50,13 +50,14 @@ import numpy as np
 import scipy.stats
 import random
 import itertools
+import krippendorff # type: ignore
 
 os.makedirs("computed/img/", exist_ok=True)
 
 def compute_times(actions):
     times = sorted([x["time"] for x in actions])
     deltas = [(times[i] - times[i - 1]) for i in range(1, len(times))]
-    return sum([delta if delta < 3 * 60 else 30 for delta in deltas if delta])
+    return sum([delta if delta < 3 * 60 else 3 * 60 for delta in deltas if delta])
 
 
 results = {}
@@ -71,6 +72,11 @@ def compute_kendalltau(model_scores1, model_scores2):
         list(model_scores1.values()),
         [model_scores2[model] for model in model_scores1],
     ).correlation # type: ignore
+
+def compute_pval(model_scores1, model_scores2):
+    return scipy.stats.ttest_rel(
+        model_scores1, model_scores2,
+    ).pvalue # type: ignore
 
 
 def analyze_protocol(data, key, k=1):
@@ -90,18 +96,18 @@ def analyze_protocol(data, key, k=1):
     print("Time (avg/word):", f"{sum(times) / sum(words) / k:.3f}", "s")
 
     model_scores = collections.defaultdict(lambda: collections.defaultdict(list))
+    model_errors = collections.defaultdict(lambda: collections.defaultdict(list))
     model_scores_user = collections.defaultdict(list)
     for doc in data:
         for item, item_ann in zip(doc["item"], doc["annotation"]):
             item_id = item["item_id"]
-            for model, annotation in item_ann.items():
-                # TODO: figure out IAA better
+            item_id = item_id.removesuffix("_#_dup0").removesuffix("_#_dup1")
+            for model, ann in item_ann.items():
                 model = model.removesuffix("'")
-                model_scores_user[("all", item_id, model)].append(annotation["score"])
-                model_scores_user[(doc["user_id"], item_id, model)].append(
-                    annotation["score"]
-                )
-                model_scores[model][item_id].append(annotation["score"])
+                model_scores_user[("all", item_id, model)].append(ann["score"])
+                model_scores_user[(doc["user_id"], item_id, model)].append(ann["score"])
+                model_scores[model][item_id].append(ann["score"])
+                model_errors[model][item_id].append(len(ann["error_spans"]))
     model_scores_avg = {
         model: statistics.mean([statistics.mean(ll) for ll in model_v.values()])
         for model, model_v in model_scores.items()
@@ -141,6 +147,21 @@ def analyze_protocol(data, key, k=1):
     else:
         intra_aa_mse = -1
 
+    # compute krippendorff's alpha
+    users_all = set([user for (user, _item, _model) in model_scores_user.keys() if user != "all"])
+    items_all = set([(item, model) for (_user, item, model) in model_scores_user.keys()])
+    user_to_index = {user: i for i, user in enumerate(sorted(users_all))}
+    item_to_index = {item: i for i, item in enumerate(sorted(items_all))}
+    kr_data = np.full((len(users_all), len(items_all)), np.nan)
+
+    for (user, item, model), duplicate_annotations_user in model_scores_user.items():
+        if user == "all":
+            continue
+        user_index = user_to_index[user]
+        item_index = item_to_index[(item, model)]
+        kr_data[user_index, item_index] = statistics.mean(duplicate_annotations_user)
+    kr_alpha = krippendorff.alpha(reliability_data=kr_data, level_of_measurement='interval')
+
     # compute stability
     # model_scores_avg = {k: statistics.mean(v.values()) for k, v in model_scores.items()}
     item_ids = list(
@@ -151,7 +172,7 @@ def analyze_protocol(data, key, k=1):
         }
     )
     stability_taus = []
-    for subset_p in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+    for subset_p in [0.1, 0.2, 0.3, 0.4, 0.5]:
         for _ in range(100):
             item_ids_local = random.sample(item_ids, int(len(item_ids) * subset_p))
             model_scores_local = {
@@ -170,6 +191,20 @@ def analyze_protocol(data, key, k=1):
                 compute_kendalltau(model_scores_avg, model_scores_avg_local)
             )
 
+    # compute clusters
+    pvals = []
+    models_sorted = sorted(model_scores_avg.keys(), key=lambda x: model_scores_avg[x], reverse=True)
+    for (model1, model2) in itertools.product(models_sorted, repeat=2):
+        if model1 == model2:
+            continue
+        model_scores_flat = [
+            (statistics.mean(model_scores[model1][item_id]), statistics.mean(model_scores[model2][item_id]))
+            for item_id in model_scores[model1].keys() & model_scores[model2].keys()
+        ]
+        model_scores_1 = [x for x, _ in model_scores_flat]
+        model_scores_2 = [x for _, x in model_scores_flat]
+        pvals.append(compute_pval(model_scores_1, model_scores_2))
+
     # plot histogram of model scores
     scores_all = [x for ll in model_scores.values() for y in ll.values() for x in y]
     plt.figure(figsize=(3.2, 1))
@@ -185,14 +220,22 @@ def analyze_protocol(data, key, k=1):
     plt.tight_layout()
     plt.savefig(f"computed/img/{key}_scores.svg", transparent=True)
 
+
+    # plot histogram of model errors
+    errors_all = [x for ll in model_errors.values() for y in ll.values() for x in y]
+
     results[key] = {
         "time_perseg": f"{sum(times) / segments / k:.1f}s",
         "time_perword": f"{sum(times) / sum(words) / k:.3f}s",
+        "time_pererr": f"{sum(times) / sum(errors_all):.1f}s",
         "inter-aa": f"{inter_aa_mse:.1f}",
         "intra-aa": f"{intra_aa_mse:.1f}",
+        "kr_alpha": f"{kr_alpha:.3f}",
         "stability": f"{statistics.mean(stability_taus):.3f}",
         "model_ranking": {model: mean for model, mean in sorted(model_scores_avg.items(), key=lambda x: x[1], reverse=True)},
-        # TODO: clusters?
+        "pvals": f"{statistics.mean(pvals):.3f}",
+        "pvals_sig": f"{statistics.mean([float(pval < 0.05) for pval in pvals]):.0%}",
+        "errors_avg": f"{statistics.mean(errors_all):.1f}",
     }
 
 analyze_protocol(small_enja["ESA"], "small-enja-esa")

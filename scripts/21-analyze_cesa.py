@@ -49,8 +49,6 @@ def plot(data, key, pos):
                 if annotation["score"] is not None:
                     scores.append(annotation["score"])
     
-    # scores = np.clip(np.random.normal(65, 30, 300), 0, 150)
-    # scores = np.digitize(scores, np.arange(10, 100, 10)) * 10
     plt.figure(figsize=(1.7, 1))
     plt.hist(
         scores,
@@ -140,7 +138,8 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
                 if len(screen) < 2:
                     continue
                 if screen:
-                    docs_to_screens[item_seg["item_id"]].append(screen)
+                    item_id = item_seg["item_id"].removesuffix("_#_dup0").removesuffix("_#_dup1")
+                    docs_to_screens[item_id].append(screen)
         
         for vvv in ["mean", "max"]:
             results = []
@@ -148,6 +147,8 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
                 if len(screens) < 2:
                     continue
                 for screen_a, screen_b in itertools.product(screens, screens):
+                    if screen_a == screen_b:
+                        continue
                     # model needs to be in both
                     for model in screen_a.keys() & screen_b.keys():
                         screen_a_sim = [
@@ -174,7 +175,12 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
                             raise ValueError(vvv)
 
                         # check if higher similarity is causing the model score to be lower
-                        results.append(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] < screen_b[model]["score"])
+                        results.append(
+                            int(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] < screen_b[model]["score"])
+                            -
+                            # subtract the opposite case
+                            int(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] > screen_b[model]["score"])
+                        )
 
                 output[data_key]["similarity_" + vvv][k] = np.mean(results)
 
@@ -184,6 +190,8 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
                 if len(screens) < 2:
                     continue
                 for screen_a, screen_b in itertools.product(screens, screens):
+                    if screen_a == screen_b:
+                        continue
                     # model needs to be in both
                     for model in screen_a.keys() & screen_b.keys():
                         if vvv == "mean":
@@ -196,7 +204,11 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
                             raise ValueError(vvv)
 
                         # check if dominance is causing the model score to be lower
-                        results.append(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] < screen_b[model]["score"])
+                        results.append(
+                            int(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] < screen_b[model]["score"])
+                            -
+                            int(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] > screen_b[model]["score"])
+                        )
 
                 output[data_key]["dominance_" + vvv][k] = np.mean(results)
 

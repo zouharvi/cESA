@@ -17,6 +17,7 @@ dependencies = [
     "cohere>=5.20.0",
     "evaluation_bandit>=0.0.0",
     "python-dotenv>=1.0.0",
+    "krippendorff>=0.8.0",
 ]
 
 [project.optional-dependencies]
