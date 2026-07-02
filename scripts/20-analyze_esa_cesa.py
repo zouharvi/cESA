@@ -224,10 +224,15 @@ def analyze_protocol(data, key, k=1):
     # plot histogram of model errors
     errors_all = [x for ll in model_errors.values() for y in ll.values() for x in y]
 
+    times_ci = scipy.stats.bootstrap((times,), np.mean, confidence_level=0.95, method='BCa')
+    times_ci = (times_ci.confidence_interval.high-times_ci.confidence_interval.low) / 2
+
     results[key] = {
         "time_perseg": f"{sum(times) / segments / k:.1f}s",
+        "time_perseg_ci": f"{times_ci / segments / k:.1f}",
         "time_perword": f"{sum(times) / sum(words) / k:.3f}s",
         "time_pererr": f"{sum(times) / sum(errors_all):.1f}s",
+        "time_pererr_ci": f"{times_ci / sum(errors_all):.1f}",
         "inter-aa": f"{inter_aa_mse:.1f}",
         "intra-aa": f"{intra_aa_mse:.1f}",
         "kr_alpha": f"{kr_alpha:.3f}",
