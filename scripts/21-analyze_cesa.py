@@ -2,6 +2,7 @@
 import collections
 import json
 import os
+import statistics
 
 os.chdir(os.path.dirname(__file__)+"/../")
 
@@ -117,6 +118,8 @@ output = {
         "similarity_max": {},
         "dominance_mean": {},
         "dominance_max": {},
+        "intramae": {},
+        "intermae": {},
     } for key in ["enja", "enit"]
 }
 
@@ -126,7 +129,7 @@ def chrf(s1, s2):
     return (CHRF.sentence_score(s1, [s2]).score + CHRF.sentence_score(s2, [s1]).score) / 2
 
 for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
-    for k in tqdm.tqdm([2, 3, 4]):
+    for k in tqdm.tqdm([1, 2, 3, 4]):
         # collect "screens"
         docs_to_screens = collections.defaultdict(list)
         for item in data[k]:
@@ -135,12 +138,36 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
                 for model, annotation in item_ann.items():
                     if annotation["score"] is not None:
                         screen[model.removesuffix("'")] = {"score": annotation["score"], "tgt": item_seg["tgt"][model]}
-                if len(screen) < 2:
-                    continue
-                if screen:
+                if screen and "_#_tutorial_#_" not in item_seg["item_id"]:
                     item_id = item_seg["item_id"].removesuffix("_#_dup0").removesuffix("_#_dup1")
                     docs_to_screens[item_id].append(screen)
-        
+
+        # inter- and intra-MAE
+        results_intramae = []
+        results_intermae = []
+        for _doc, screens in docs_to_screens.items():
+            if len(screens) < 2:
+                continue
+            for screen_a, screen_b in itertools.product(screens, screens):
+                if screen_a == screen_b:
+                    continue
+                if k != 1:
+                    screen_a_intramae = statistics.mean([abs(x1-x2) for x1, x2 in itertools.combinations([v["score"] for v in screen_a.values()], 2)])
+                    screen_b_intramae = statistics.mean([abs(x1-x2) for x1, x2 in itertools.combinations([v["score"] for v in screen_b.values()], 2)])
+                    screens_intramae = (screen_a_intramae + screen_b_intramae) / 2
+                    results_intramae.append(screens_intramae)
+                
+                screens_intermae = statistics.mean([abs(x1-x2) for x1, x2 in itertools.product([v["score"] for v in screen_a.values()], [v["score"] for v in screen_b.values()])])
+                results_intermae.append(screens_intermae)
+        if k != 1:
+            output[data_key]["intramae"][k] = np.mean(results_intramae)
+        print(k, np.mean(results_intermae), results_intermae)
+        output[data_key]["intermae"][k] = np.mean(results_intermae)
+        if k == 1:
+            continue
+
+        # compute similarity
+        results = []
         for vvv in ["mean", "max"]:
             results = []
             for _doc, screens in docs_to_screens.items():
@@ -149,6 +176,7 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
                 for screen_a, screen_b in itertools.product(screens, screens):
                     if screen_a == screen_b:
                         continue
+
                     # model needs to be in both
                     for model in screen_a.keys() & screen_b.keys():
                         screen_a_sim = [
@@ -182,7 +210,7 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
                             int(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] > screen_b[model]["score"])
                         )
 
-                output[data_key]["similarity_" + vvv][k] = np.mean(results)
+            output[data_key]["similarity_" + vvv][k] = np.mean(results)
 
             # compute dominance
             results = []
@@ -210,7 +238,7 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
                             int(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] > screen_b[model]["score"])
                         )
 
-                output[data_key]["dominance_" + vvv][k] = np.mean(results)
+            output[data_key]["dominance_" + vvv][k] = np.mean(results)
 
 with open("computed/similarity_dominance_bias.json", "w") as f:
     json.dump(output, f, indent=2)
