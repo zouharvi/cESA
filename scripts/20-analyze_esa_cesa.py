@@ -53,19 +53,15 @@ import itertools
 import krippendorff # type: ignore
 
 os.makedirs("computed/img/", exist_ok=True)
+results = {}
 
 def compute_times(actions):
     times = sorted([x["time"] for x in actions])
     deltas = [(times[i] - times[i - 1]) for i in range(1, len(times))]
     return sum([delta if delta < 3 * 60 else 3 * 60 for delta in deltas if delta])
 
-
-results = {}
-
-
 def get_model_ranking(model_scores):
     return {k: statistics.mean(v.values()) for k, v in model_scores.items()}
-
 
 def compute_kendalltau(model_scores1, model_scores2):
     return scipy.stats.kendalltau(
@@ -78,6 +74,9 @@ def compute_pval(model_scores1, model_scores2):
         model_scores1, model_scores2,
     ).pvalue # type: ignore
 
+def compute_ci(data, confidence=0.99):
+    ci = scipy.stats.bootstrap((data,), np.mean, confidence_level=confidence, method='BCa')
+    return (ci.confidence_interval.high - ci.confidence_interval.low) / 2
 
 def analyze_protocol(data, key, k=1):
     print("\n"+key)
@@ -126,10 +125,8 @@ def analyze_protocol(data, key, k=1):
             for a, b in itertools.combinations(duplicate_annotations_user, 2)
         ]
 
-    if inter_aa_mse:
-        inter_aa_mse = statistics.mean(inter_aa_mse)
-    else:
-        inter_aa_mse = -1
+    inter_aa_mse_ci = compute_ci(inter_aa_mse)
+    inter_aa_mse = statistics.mean(inter_aa_mse)
 
     # compute intra-annotator agreement
     intra_aa_mse = [
@@ -142,10 +139,8 @@ def analyze_protocol(data, key, k=1):
             if user != "all" and len(duplicate_annotations_user) >= 2
             for a, b in itertools.combinations(duplicate_annotations_user, 2)
         ]
-    if intra_aa_mse:
-        intra_aa_mse = statistics.mean(intra_aa_mse)
-    else:
-        intra_aa_mse = -1
+    intra_aa_mse_ci = compute_ci(intra_aa_mse)
+    intra_aa_mse = statistics.mean(intra_aa_mse)
 
     # compute krippendorff's alpha
     users_all = set([user for (user, _item, _model) in model_scores_user.keys() if user != "all"])
@@ -172,24 +167,28 @@ def analyze_protocol(data, key, k=1):
         }
     )
     stability_taus = []
-    for subset_p in [0.1, 0.2, 0.3, 0.4, 0.5]:
-        for _ in range(100):
-            item_ids_local = random.sample(item_ids, int(len(item_ids) * subset_p))
-            model_scores_local = {
-                model: {
-                    item_id: v[item_id] for item_id in item_ids_local if item_id in v
+    for _ in range(100):
+        stability_taus_local = []
+        for subset_p in [0.1, 0.2, 0.3, 0.4, 0.5]:
+            for _ in range(100):
+                item_ids_local = random.sample(item_ids, int(len(item_ids) * subset_p))
+                model_scores_local = {
+                    model: {
+                        item_id: v[item_id] for item_id in item_ids_local if item_id in v
+                    }
+                    for model, v in model_scores.items()
                 }
-                for model, v in model_scores.items()
-            }
-            model_scores_avg_local = {
-                model: statistics.mean([statistics.mean(ll) for ll in model_v.values()])
-                if model_v.values()
-                else 0
-                for model, model_v in model_scores_local.items()
-            }
-            stability_taus.append(
-                compute_kendalltau(model_scores_avg, model_scores_avg_local)
-            )
+                model_scores_avg_local = {
+                    model: statistics.mean([statistics.mean(ll) for ll in model_v.values()])
+                    if model_v.values()
+                    else 0
+                    for model, model_v in model_scores_local.items()
+                }
+                stability_taus_local.append(
+                    compute_kendalltau(model_scores_avg, model_scores_avg_local)
+                )
+        stability_taus.append(statistics.mean(stability_taus_local))
+    stability_taus_ci = compute_ci(stability_taus)
 
     # compute clusters
     pvals = []
@@ -224,19 +223,22 @@ def analyze_protocol(data, key, k=1):
     # plot histogram of model errors
     errors_all = [x for ll in model_errors.values() for y in ll.values() for x in y]
 
-    times_ci = scipy.stats.bootstrap((times,), np.mean, confidence_level=0.95, method='BCa')
-    times_ci = (times_ci.confidence_interval.high-times_ci.confidence_interval.low) / 2
+    times_perseg_ci = compute_ci([t / segments / k for t in times])
+    times_pererr_ci = compute_ci([t / sum(errors_all) for t in times])
 
     results[key] = {
         "time_perseg": f"{sum(times) / segments / k:.1f}s",
-        "time_perseg_ci": f"{times_ci / segments / k:.1f}",
+        "time_perseg_ci": f"{times_perseg_ci:.2f}",
         "time_perword": f"{sum(times) / sum(words) / k:.3f}s",
         "time_pererr": f"{sum(times) / sum(errors_all):.1f}s",
-        "time_pererr_ci": f"{times_ci / sum(errors_all):.1f}",
+        "time_pererr_ci": f"{times_pererr_ci:.2f}",
         "inter-aa": f"{inter_aa_mse:.1f}",
+        "inter-aa_ci": f"{inter_aa_mse_ci:.3f}",
         "intra-aa": f"{intra_aa_mse:.1f}",
+        "intra-aa_ci": f"{intra_aa_mse_ci:.3f}",
         "kr_alpha": f"{kr_alpha:.3f}",
         "stability": f"{statistics.mean(stability_taus):.3f}",
+        "stability_ci": f"{stability_taus_ci:.3f}",
         "model_ranking": {model: mean for model, mean in sorted(model_scores_avg.items(), key=lambda x: x[1], reverse=True)},
         "pvals": f"{statistics.mean(pvals):.3f}",
         "pvals_sig": f"{statistics.mean([float(pval < 0.05) for pval in pvals]):.0%}",
