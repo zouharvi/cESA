@@ -66,13 +66,13 @@ def plot(data, key, pos):
         fontsize=18,
         ha="right",
         va="center",
-        color=evaluation_contrastive.utils_fig.COLORS[0],
+        color="#727D46",
     )
     plt.vlines(
         mean,
         ymin=0,
         ymax=len(scores) / 6,
-        color=evaluation_contrastive.utils_fig.COLORS[0],
+        color="#727D46",
         linestyle="--",
     )
     plt.tight_layout()
