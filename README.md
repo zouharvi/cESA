@@ -4,7 +4,7 @@
 > Current human evaluation of machine translation typically assesses single outputs in isolation, a paradigm that suffers from high annotator noise and cost.
 > We introduce Contrastive Error Span Annotation (cESA), a protocol that presents *multiple* document-level translations alongside the source text.
 > By allowing annotators to access the shared context across multiple outputs to mark error spans and assign absolute scores, cESA facilitates more consistent and efficient judgments.
-> We validate cESA using a large-scale human evaluation of English$arrow$Japanese translations of 12 models, demonstrating reductions in annotation time and noise compared to standard pointwise evaluation.
+> We validate cESA using a large-scale human evaluation of English->Japanese translations of 12 models, demonstrating reductions in annotation time and noise compared to standard pointwise evaluation.
 > Unlike existing contrastive ranking methods, cESA yields absolute quality judgments that enable simple, interpretable non-parametric model rankings without the need for post-hoc corrections.
 
 This repository contains the code for the paper [Contrastive ESA: Human Evaluation of Multiple Translations at Once](TODO).
@@ -82,9 +82,8 @@ pearmut run
 For analysis, we store the collected annotations in `humeval/annotations/`.
 The paper figures and data can be reproduced with:
 ```bash
-cd scripts
-python3 20-analyze_esa_cesa.py
-python3 21-analyze_cesa.py
+python3 scripts/20-analyze_esa_cesa.py
+python3 scripts/21-analyze_cesa.py
 ```
 
 ## Citation
