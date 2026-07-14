@@ -120,6 +120,8 @@ output = {
         "dominance_max": {},
         "intramae": {},
         "intermae": {},
+        "withinscreen-pairwise": {},
+        "acrossscreen-pairwise": {},
     } for key in ["enja", "enit"]
 }
 
@@ -132,15 +134,18 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
     for k in tqdm.tqdm([1, 2, 3, 4]):
         # collect "screens"
         docs_to_screens = collections.defaultdict(list)
+        model_average = collections.defaultdict(list)
         for item in data[k]:
             for item_seg, item_ann in zip(item["item"], item["annotation"]):
                 screen = {}
                 for model, annotation in item_ann.items():
-                    if annotation["score"] is not None:
+                    if annotation["score"] is not None and "_#_tutorial_#_" not in item_seg["item_id"]:
+                        model_average[model.removesuffix("'")].append(annotation["score"])
                         screen[model.removesuffix("'")] = {"score": annotation["score"], "tgt": item_seg["tgt"][model]}
-                if screen and "_#_tutorial_#_" not in item_seg["item_id"]:
+                if screen:
                     item_id = item_seg["item_id"].removesuffix("_#_dup0").removesuffix("_#_dup1")
                     docs_to_screens[item_id].append(screen)
+        model_average = {k: np.mean(v) for k, v in model_average.items()}
 
         # inter- and intra-MAE
         results_intramae = []
@@ -161,8 +166,30 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
                 results_intermae.append(screens_intermae)
         if k != 1:
             output[data_key]["intramae"][k] = np.mean(results_intramae)
-        print(k, np.mean(results_intermae), results_intermae)
         output[data_key]["intermae"][k] = np.mean(results_intermae)
+
+        results_withinscreen = []
+        results_acrossscreen = []
+        for _doc, screens in docs_to_screens.items():
+            # compute within-screeen --- global model ranking
+            for screen in screens:
+                for model1, model2 in itertools.combinations(screen.keys(), 2):
+                    results_withinscreen.append(int((model_average[model1] > model_average[model2]) == (screen[model1]["score"] > screen[model2]["score"])))
+                
+            # compute across-screeen --- global model ranking
+            for screen_a, screen_b in itertools.product(screens, screens):
+                if screen_a == screen_b:
+                    continue
+
+                for model1, model2 in itertools.product(screen_a.keys(), screen_b.keys()):
+                    if model1 == model2:
+                        continue
+                    results_acrossscreen.append(int((model_average[model1] > model_average[model2]) == (screen_a[model1]["score"] > screen_b[model2]["score"])))
+
+        if k != 1:
+            output[data_key]["withinscreen-pairwise"][k] = np.mean(results_withinscreen)
+        output[data_key]["acrossscreen-pairwise"][k] = np.mean(results_acrossscreen)
+
         if k == 1:
             continue
 
@@ -240,9 +267,14 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
 
             output[data_key]["dominance_" + vvv][k] = np.mean(results)
 
+
 with open("computed/similarity_dominance_bias.json", "w") as f:
     json.dump(output, f, indent=2)
 
+
+# %%
+
+# how much are per-scren annotations aligned with global model ranking
 
 # %%
 
