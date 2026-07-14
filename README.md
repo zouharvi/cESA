@@ -66,8 +66,8 @@ python3 scripts/10-prepare_humeval_preablation.py
 
 Or download already prepared ones:
 ```bash
-wget TODO
-gunzip TODO
+wget https://github.com/zouharvi/cESA/releases/download/data_a0/campaigns.zip
+unzip campaigns.zip -d campaigns
 ```
 
 Then these can be loaded into pearmut with:
