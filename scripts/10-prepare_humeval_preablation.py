@@ -2,10 +2,13 @@
 
 # ESA vs cESA ablation
 
-import subset2evaluate.utils
+import subset2evaluate.utils # type: ignore
 import collections
 import random
 import json
+import os
+
+os.chdir(os.path.dirname(__file__) + "/../")
 
 
 data = subset2evaluate.utils.load_data_wmt(
@@ -229,10 +232,10 @@ for phase, (phase_name, data_phase_out) in enumerate(
         ],
     }
 
-    with open(f"../humeval/preablation_cESA_phase{phase_name}.json", "w") as f:
+    with open(f"humeval/preablation_cESA_phase{phase_name}.json", "w") as f:
         json.dump(data_pearmut_cesa, f, indent=4, ensure_ascii=False)
 
-    with open(f"../humeval/preablation_ESA_phase{phase_name}.json", "w") as f:
+    with open(f"humeval/preablation_ESA_phase{phase_name}.json", "w") as f:
         json.dump(data_pearmut_esa, f, indent=4, ensure_ascii=False)
 
 # %%
@@ -241,20 +244,20 @@ import requests
 import zipfile
 import io
 
-os.makedirs("../humeval/wmt25_genmt_assets", exist_ok=True)
+os.makedirs("humeval/wmt25_genmt_assets", exist_ok=True)
 zipfile.ZipFile(
     io.BytesIO(
         requests.get(
             "https://data.statmt.org/wmt25/general-mt/wmt25_genmt_assets.zip"
         ).content
     )
-).extractall("../humeval/wmt25_genmt_assets")
+).extractall("humeval/wmt25_genmt_assets")
 
 # %%
 
 # sanity check
 
-with open("../humeval/preablation_cESA_phase1+2.json", "r") as f:
+with open("humeval/preablation_cESA_phase1+2.json", "r") as f:
     data = json.load(f)["data"]
 
 for user, data_user in enumerate(data):

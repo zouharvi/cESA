@@ -4,6 +4,9 @@ import subset2evaluate.utils # type: ignore
 import collections
 import random
 import json
+import os
+
+os.chdir(os.path.dirname(__file__) + "/../")
 
 
 data = subset2evaluate.utils.load_data_wmt(
@@ -313,7 +316,7 @@ for phase, data_phase_out in enumerate(data_phases_out_flat):
         "data": tasks,
     }
     
-    with open(f"../humeval/main_enit_cESA_phase{phase + 1}.json", "w") as f:
+    with open(f"humeval/main_enit_cESA_phase{phase + 1}.json", "w") as f:
         json.dump(data_pearmut, f, indent=4, ensure_ascii=False)
 
 # %%
@@ -322,21 +325,21 @@ import requests
 import zipfile
 import io
 
-os.makedirs("../humeval/wmt25_genmt_assets", exist_ok=True)
+os.makedirs("humeval/wmt25_genmt_assets", exist_ok=True)
 zipfile.ZipFile(
     io.BytesIO(
         requests.get(
             "https://data.statmt.org/wmt25/general-mt/wmt25_genmt_assets.zip"
         ).content
     )
-).extractall("../humeval/wmt25_genmt_assets")
+).extractall("humeval/wmt25_genmt_assets")
 
 # %%
 import json
 
 # sanity check
 
-with open("../humeval/main_cESA_phase1.json", "r") as f:
+with open("humeval/main_cESA_phase1.json", "r") as f:
     data = json.load(f)["data"]
 
 for user, data_user in enumerate(data):

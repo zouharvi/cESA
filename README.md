@@ -1,41 +1,94 @@
-# Contrastive Human Evaluation
+# Contrastive ESA: Human Evaluation of Multiple Translations at Once
 
-Contrastive human evaluation of multilingual tasks, such as translation.
+> **Abstract:**
+> Current human evaluation of machine translation typically assesses single outputs in isolation, a paradigm that suffers from high annotator noise and cost.
+> We introduce Contrastive Error Span Annotation (cESA), a protocol that presents *multiple* document-level translations alongside the source text.
+> By allowing annotators to access the shared context across multiple outputs to mark error spans and assign absolute scores, cESA facilitates more consistent and efficient judgments.
+> We validate cESA using a large-scale human evaluation of English$arrow$Japanese translations of 12 models, demonstrating reductions in annotation time and noise compared to standard pointwise evaluation.
+> Unlike existing contrastive ranking methods, cESA yields absolute quality judgments that enable simple, interpretable non-parametric model rankings without the need for post-hoc corrections.
 
-<!-- warning -->
+This repository contains the code for the paper [Contrastive ESA: Human Evaluation of Multiple Translations at Once](TODO).
 
+<!-- TODO: image -->
 
-Documentation WIP.
+You can browse an example the collected cESA annotations from the annotator perspective in [English->Japanese here](TODO).
 
-## Running Human Evaluation experiments
+## Running Contrastive Error Span Annotation (cESA)
 
 > [!NOTE]  
 > This repository does not contain the Pearmut annotation interface, which can be found at [github.com/zouharvi/pearmut](https://github.com/zouharvi/pearmut).
 > This repository only contains scripts to generate and analyze data for the cESA paper.
 > To use cESA, specifiy `"protocol": "cESA"` in Pearmut.
 
-To reproduce the human evaluation setup, run:
+For a quick example of cESA, you can run minimal annotations with:
 ```bash
-cd scripts
-python3 10-prepare_humeval_main.py
-python3 10-prepare_humeval_preablation.py
-```
+cat << EOF > campaign.json
+{
+"info": {
+  "assignment": "single-stream",
+  "protocol": "cESA"
+},
+"campaign_id": "my_campaign",
+"data": [[
+  {
+    "src": "Die sehr hungrige Raupe schlüpfte...",
+    "tgt": {
+      "modelA": "The famished larva hatched...",
+      "modelB": "The hungry caterpillar hatched...",
+      "modelC": "The very hungry caterpillar ate..."
+    }
+  }
+]]
+}
+EOF
 
-Then these can be loaded with:
-```bash
-cd humeval
-pearmut add main_*.json preablation_*.json
+# or pip install "pearmut==1.1.6"
+pip install pearmut
+pearmut add campaign.json
 pearmut run
 ```
 
-For analysis, we store the collected annotations in `humeval/collected/`, which can be analyzed with:
+## Reproducing Human Evaluation
+
+To reproduce the human evaluation setup, you first need campaign source files.
+You can either recreate them from scratch:
 ```bash
-cd scripts
-python3 20-analyze_preablation.py
+python3 scripts/10-prepare_humeval_main_enja.py
+python3 scripts/10-prepare_humeval_main_enit.py
+python3 scripts/10-prepare_humeval_preablation.py
 ```
 
-## Running LLM-as-a-judge experiments
+Or download already prepared ones:
+```bash
+wget TODO
+gunzip TODO
+```
 
-The following assumes `COHERE_API_KEY` environment variable is set.
+Then these can be loaded into pearmut with:
+```bash
+cd humeval
+pearmut add campaigns/main_*.json campaigns/preablation_*.json
+pearmut run
+```
 
-TODO
+## Analysis
+
+For analysis, we store the collected annotations in `humeval/annotations/`.
+The paper figures and data can be reproduced with:
+```bash
+cd scripts
+python3 20-analyze_esa_cesa.py
+python3 21-analyze_cesa.py
+```
+
+## Citation
+
+If you use this work, please cite it as:
+```bibtex
+@misc{zouhar2026cesa,
+  title = {Contrastive {ESA}: Human Evaluation of Multiple Translations at Once},
+  author = {Zouhar, Vilém and Grundkiewicz, Roman and Rajaee, Sara and Riley, Parker and Popel, Martin and Bawden, Rachel and Koehn, Philipp and Carpuat, Marine and Sachan, Mrinmaya and Kocmi, Tom},
+  year = {2026},
+  url = {https://github.com/zouharvi/cESA},
+}
+```

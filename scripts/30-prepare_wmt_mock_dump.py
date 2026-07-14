@@ -9,7 +9,7 @@ os.chdir(os.path.dirname(__file__)+"/../")
 
 data = []
 model_scores = collections.defaultdict(list)
-with open("humeval/collected/main_enja.json", "r") as f:
+with open("humeval/annotations/main_enja.json", "r") as f:
     data_raw = json.load(f)
     for campaign_name, campaign_data in data_raw.items():
         for doc in campaign_data:
@@ -78,5 +78,5 @@ for i in range(5_000):
 
 # %%
 
-with open("humeval/collected/mock_enja_v1.json", "w") as f:
+with open("humeval/annotations/mock_enja_v1.json", "w") as f:
     json.dump(data_local, f, indent=2, ensure_ascii=False)

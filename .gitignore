@@ -1,9 +1,12 @@
 # added by zouharvi
 .env
 cache/
-# TODO: remove this for publication
-humeval/collected/
+data/
+humeval/campaigns
+humeval/progress
+humeval/annotations
 humeval/data/
+humeval/static
 humeval/main_*.json
 humeval/example_*.json
 humeval/preablation_*.json

@@ -7,7 +7,7 @@ import os
 os.chdir(os.path.dirname(__file__)+"/../")
 
 small_enja = collections.defaultdict(list)
-with open("humeval/collected/preablation_enja.json", "r") as f:
+with open("humeval/annotations/preablation_enja.json", "r") as f:
     data_raw = json.load(f)
     for campaign_name, campaign_data in data_raw.items():
         protocol = "cESA" if "cESA" in campaign_name else "ESA"
@@ -17,7 +17,7 @@ with open("humeval/collected/preablation_enja.json", "r") as f:
         small_enja[protocol] += campaign_data
 
 big_enja_cESA_k = collections.defaultdict(list)
-with open("humeval/collected/main_enja.json", "r") as f:
+with open("humeval/annotations/main_enja.json", "r") as f:
     data_raw = json.load(f)
     for campaign_name, campaign_data in data_raw.items():
         for item in campaign_data:
@@ -30,7 +30,7 @@ with open("humeval/collected/main_enja.json", "r") as f:
 
 
 big_enit_cESA_k = collections.defaultdict(list)
-with open("humeval/collected/main_enit.json", "r") as f:
+with open("humeval/annotations/main_enit.json", "r") as f:
     data_raw = json.load(f)
     for campaign_name, campaign_data in data_raw.items():
         for item in campaign_data:

@@ -24,8 +24,8 @@ dependencies = [
 dev = ["pytest"]
 
 [project.urls]
-Repository = "https://github.com/zouharvi/evaluation-contrastive"
-Issues = "https://github.com/zouharvi/evaluation-contrastive/issues"
+Repository = "https://github.com/zouharvi/cESA"
+Issues = "https://github.com/zouharvi/cESA/issues"
 
 [tool.setuptools]
 package-dir = { evaluation_contrastive = "evaluation_contrastive" }

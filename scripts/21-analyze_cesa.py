@@ -7,7 +7,7 @@ import statistics
 os.chdir(os.path.dirname(__file__)+"/../")
 
 big_enja = collections.defaultdict(list)
-with open("humeval/collected/main_enja.json", "r") as f:
+with open("humeval/annotations/main_enja.json", "r") as f:
     data_raw = json.load(f)
     for campaign_name, campaign_data in data_raw.items():
         for item in campaign_data:
@@ -19,7 +19,7 @@ with open("humeval/collected/main_enja.json", "r") as f:
 
 
 big_enit = collections.defaultdict(list)
-with open("humeval/collected/main_enit.json", "r") as f:
+with open("humeval/annotations/main_enit.json", "r") as f:
     data_raw = json.load(f)
     for campaign_name, campaign_data in data_raw.items():
         for item in campaign_data:
