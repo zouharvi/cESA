@@ -11,7 +11,7 @@ This repository contains the code for the paper [Contrastive ESA: Human Evaluati
 
 <img alt="Pearmut cESA screenshot" src="https://github.com/user-attachments/assets/0d8efec2-08be-4d0e-830f-7accc295f5a4" />
 
-You can browse an example the collected cESA annotations from the annotator perspective in [English->Japanese here](TODO).
+You can browse an example the collected cESA annotations from the annotator perspective in [English->Japanese here](https://zouharvi.github.io/cESA/?baked=&campaign_id=main_cESA_phase1_v2_enja&bakedItemI=9).
 
 All the data are stored in the [Release tab](https://github.com/zouharvi/cESA/releases/):
 - [Campaign sources](https://github.com/zouharvi/cESA/releases/download/data_a0/campaigns.zip)
