@@ -2,6 +2,7 @@
 import collections
 import json
 import os
+from random import random
 import statistics
 
 os.chdir(os.path.dirname(__file__)+"/../")
@@ -274,7 +275,106 @@ with open("computed/similarity_dominance_bias.json", "w") as f:
 
 # %%
 
-# how much are per-scren annotations aligned with global model ranking
+
+# statistical modelling
+
+import choix
+import numpy as np
+import tqdm
+import scipy.stats
+import copy
+import random
+
+def relative_ranking(n_models, data, **kwargs):
+    ranks = collections.defaultdict(list)
+    for screen in data:
+        for i, model in enumerate(screen):
+            ranks[model].append(i)
+    ranks = {k: np.mean(v) for k, v in ranks.items()}
+    return [ranks[i] for i in range(n_models)]
+
+output = collections.defaultdict(dict)
+for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
+    for k in tqdm.tqdm([1, 2, 3, 4]):
+
+        model_average = collections.defaultdict(list)
+        data_across_screens = collections.defaultdict(dict)
+        data_within_screens = []
+
+        for item in data[k]:
+            for item_seg, item_ann in zip(item["item"], item["annotation"]):
+                screen = {}
+                for model, annotation in item_ann.items():
+                    model = model.removesuffix("'")
+                    if annotation["score"] is not None and "_#_tutorial_#_" not in item_seg["item_id"]:
+                        model_average[model].append(annotation["score"])
+                        data_across_screens[item_seg["item_id"]][model] = annotation["score"]
+                        screen[model] = annotation["score"]
+                if screen:
+                    data_within_screens.append(screen)
+
+        model_average = {k: np.mean(v) for k, v in model_average.items()}
+        model_to_i = {k: i for i, k in enumerate(sorted(model_average.keys()))}
+        i_to_model = {i: k for k, i in model_to_i.items()}
+
+        # make a "large" screen out of each item
+        data_across_screens = list(data_across_screens.values())
+        # encode models as integers for Plackett-Luce
+        data_across_screens = [
+            tuple([model_to_i[model] for model, score in sorted(screen.items(), key=lambda x: x[1], reverse=True)])
+            for screen in data_across_screens
+        ]
+        data_within_screens = [
+            tuple([model_to_i[model] for model, score in sorted(screen.items(), key=lambda x: x[1], reverse=True)])
+            for screen in data_within_screens
+        ]
+
+        # Plackett-Luce
+
+        # across-screen ranking
+        pl_params = choix.ilsr_rankings(len(model_average), data_across_screens, max_iter=10_000)
+        model_average_pred = {i_to_model[i]: score for i, score in enumerate(pl_params)}
+        tau = scipy.stats.kendalltau(
+            [model_average[model] for model in sorted(model_average.keys())],
+            [model_average_pred[model] for model in sorted(model_average.keys())],
+        )
+        print(f"k={k} across-screens:      {tau[0]:.3f}")
+        output[data_key][f"across-screens,k={k}"] = tau[0]
+
+        if k == 1:
+            continue
+
+        # # across-screen-mock ranking
+        # # create mock tuples
+        # data_across_screens_mock = []
+        # for _screen in data_across_screens:
+        #     for _ in range(100):
+        #         screen = copy.deepcopy(_screen)
+        #         while screen:
+        #             sample_i = tuple(random.sample(range(len(screen)), k=min(len(screen), k)))
+        #             data_across_screens_mock.append(tuple([screen[i] for i in sample_i]))
+        #             screen = tuple([screen[i] for i in range(len(screen)) if i not in sample_i])
+        # pl_params = choix.ilsr_rankings(len(model_average), data_across_screens_mock, max_iter=10_000)
+        # model_average_pred = {i_to_model[i]: score for i, score in enumerate(pl_params)}
+        # tau = scipy.stats.kendalltau(
+        #     [model_average[model] for model in sorted(model_average.keys())],
+        #     [model_average_pred[model] for model in sorted(model_average.keys())],
+        # )
+        # print(f"k={k} across-screens-mock: {tau[0]:.3f}")
+        # output[data_key][f"across-screens-mock,k={k}"] = tau[0]
+
+        # within-screen ranking
+        pl_params = choix.ilsr_rankings(len(model_average), data_within_screens, max_iter=10_000)
+        model_average_pred = {i_to_model[i]: score for i, score in enumerate(pl_params)}
+        tau = scipy.stats.kendalltau(
+            [model_average[model] for model in sorted(model_average.keys())],
+            [model_average_pred[model] for model in sorted(model_average.keys())],
+        )
+        print(f"k={k} within-screens:      {tau[0]:.3f}")
+        output[data_key][f"within-screens,k={k}"] = tau[0]
+
+with open("computed/modelling.json", "w") as f:
+    json.dump(output, f, indent=2)
 
 # %%
 
