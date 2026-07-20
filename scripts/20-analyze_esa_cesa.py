@@ -78,13 +78,16 @@ def compute_ci(data, confidence=0.99):
     ci = scipy.stats.bootstrap((data,), np.mean, confidence_level=confidence, method='BCa')
     return (ci.confidence_interval.high - ci.confidence_interval.low) / 2
 
-def analyze_protocol(data, key, k=1):
+def analyze_protocol(data, key, k=1, domain=None):
+    if domain is not None:
+        key = f"{key}-{domain}"
     print("\n"+key)
     data = [
         doc
         for doc in data
         if "_#_tutorial_#_" not in doc["item"][0]["item_id"]
         and "_#_attention-check_#_" not in doc["item"][0]["item_id"]
+        and (domain is None or f"_#_{domain}_#_" in doc["item"][0]["item_id"])  
     ]
     segments = sum([len(doc["item"]) for doc in data])
     print("Count:", len(data))
@@ -226,6 +229,7 @@ def analyze_protocol(data, key, k=1):
     times_perseg_ci = compute_ci([t / segments / k for t in times])
     times_pererr_ci = compute_ci([t / sum(errors_all) for t in times])
 
+
     results[key] = {
         "time_perseg": f"{sum(times) / segments / k:.1f}s",
         "time_perseg_ci": f"{times_perseg_ci:.2f}",
@@ -247,14 +251,10 @@ def analyze_protocol(data, key, k=1):
 
 analyze_protocol(small_enja["ESA"], "small-enja-esa")
 analyze_protocol(small_enja["cESA"], "small-enja-cesa1")
-analyze_protocol(big_enja_cESA_k[1], "big-enja-cesa1", k=1)
-analyze_protocol(big_enja_cESA_k[2], "big-enja-cesa2", k=2)
-analyze_protocol(big_enja_cESA_k[3], "big-enja-cesa3", k=3)
-analyze_protocol(big_enja_cESA_k[4], "big-enja-cesa4", k=4)
-analyze_protocol(big_enit_cESA_k[1], "big-enit-cesa1", k=1)
-analyze_protocol(big_enit_cESA_k[2], "big-enit-cesa2", k=2)
-analyze_protocol(big_enit_cESA_k[3], "big-enit-cesa3", k=3)
-analyze_protocol(big_enit_cESA_k[4], "big-enit-cesa4", k=4)
+for k in range(1, 4+1):
+    for domain in [None, "speech", "social", "news"]:
+        analyze_protocol(big_enit_cESA_k[k], f"big-enit-cesa{k}", k=k, domain=domain)
+        analyze_protocol(big_enja_cESA_k[k], f"big-enja-cesa{k}", k=k, domain=domain)
 
 # add model ordering across all big-enit-*
 results["big-enit-ordering"] = sorted(
