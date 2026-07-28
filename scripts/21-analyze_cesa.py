@@ -81,16 +81,16 @@ def plot(data, key, pos):
     plt.savefig(f"computed/img/position_bias_{key}.svg", transparent=True)
 
 
-plot(big_enit[1], "enit,1,1", pos=1)
-plot(big_enit[2], "enit,2,1", pos=1)
-plot(big_enit[2], "enit,2,2", pos=2)
-plot(big_enit[3], "enit,3,1", pos=1)
-plot(big_enit[3], "enit,3,2", pos=2)
-plot(big_enit[3], "enit,3,3", pos=3)
-plot(big_enit[4], "enit,4,1", pos=1)
-plot(big_enit[4], "enit,4,2", pos=2)
-plot(big_enit[4], "enit,4,3", pos=3)
-plot(big_enit[4], "enit,4,4", pos=4)
+# plot(big_enit[1], "enit,1,1", pos=1)
+# plot(big_enit[2], "enit,2,1", pos=1)
+# plot(big_enit[2], "enit,2,2", pos=2)
+# plot(big_enit[3], "enit,3,1", pos=1)
+# plot(big_enit[3], "enit,3,2", pos=2)
+# plot(big_enit[3], "enit,3,3", pos=3)
+# plot(big_enit[4], "enit,4,1", pos=1)
+# plot(big_enit[4], "enit,4,2", pos=2)
+# plot(big_enit[4], "enit,4,3", pos=3)
+# plot(big_enit[4], "enit,4,4", pos=4)
 
 plot(big_enja[1], "enja,1,1", pos=1)
 plot(big_enja[2], "enja,2,1", pos=1)
@@ -131,7 +131,8 @@ def chrf(s1, s2):
     """Pairwise chrf for tgt similarity."""
     return (CHRF.sentence_score(s1, [s2]).score + CHRF.sentence_score(s2, [s1]).score) / 2
 
-for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
+# for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
+for data_key, data in [("enja", big_enja)]:
     for k in tqdm.tqdm([1, 2, 3, 4]):
         # collect "screens"
         docs_to_screens = collections.defaultdict(list)
@@ -191,12 +192,42 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
             output[data_key]["withinscreen-pairwise"][k] = np.mean(results_withinscreen)
         output[data_key]["acrossscreen-pairwise"][k] = np.mean(results_acrossscreen)
 
-        if k == 1:
-            continue
 
-        # compute similarity
         results = []
         for vvv in ["mean", "max"]:
+            # compute dominance
+            results = []
+            for _doc, screens in docs_to_screens.items():
+                if len(screens) < 2:
+                    continue
+                for screen_a, screen_b in itertools.product(screens, screens):
+                    if screen_a == screen_b:
+                        continue
+                    # model needs to be in both
+                    for model in screen_a.keys() & screen_b.keys():
+                        if vvv == "mean":
+                            screen_a_vvv = np.mean([v["score"] for v in screen_a.values()])
+                            screen_b_vvv = np.mean([v["score"] for v in screen_b.values()])
+                        elif vvv == "max":
+                            screen_a_vvv = np.max([v["score"] for v in screen_a.values()])
+                            screen_b_vvv = np.max([v["score"] for v in screen_b.values()])
+                        else:
+                            raise ValueError(vvv)
+                        
+                        screen_delta_avg = np.mean([v["score"] for v in screen_a.values()]) - np.mean([v["score"] for v in screen_b.values()])
+
+                        # check if dominance is causing the model score to be lower
+                        if screen_a_vvv > screen_b_vvv:
+                            results.append(screen_a[model]["score"] - screen_b[model]["score"] - screen_delta_avg)
+                        else:
+                            results.append(screen_b[model]["score"] - screen_a[model]["score"] + screen_delta_avg)
+
+            output[data_key]["dominance_" + vvv][k] = np.mean(results)
+
+            if k == 1:
+                continue
+            
+            # compute similarity
             results = []
             for _doc, screens in docs_to_screens.items():
                 if len(screens) < 2:
@@ -231,42 +262,13 @@ for data_key, data in [("enja", big_enja), ("enit", big_enit)]:
                             raise ValueError(vvv)
 
                         # check if higher similarity is causing the model score to be lower
-                        results.append(
-                            int(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] < screen_b[model]["score"])
-                            -
-                            # subtract the opposite case
-                            int(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] > screen_b[model]["score"])
-                        )
+                        if screen_a_vvv > screen_b_vvv:
+                            results.append(screen_a[model]["score"] - screen_b[model]["score"])
+                        else:
+                            results.append(screen_b[model]["score"] - screen_a[model]["score"])
 
             output[data_key]["similarity_" + vvv][k] = np.mean(results)
 
-            # compute dominance
-            results = []
-            for _doc, screens in docs_to_screens.items():
-                if len(screens) < 2:
-                    continue
-                for screen_a, screen_b in itertools.product(screens, screens):
-                    if screen_a == screen_b:
-                        continue
-                    # model needs to be in both
-                    for model in screen_a.keys() & screen_b.keys():
-                        if vvv == "mean":
-                            screen_a_vvv = np.mean([v["score"] for v in screen_a.values()])
-                            screen_b_vvv = np.mean([v["score"] for v in screen_b.values()])
-                        elif vvv == "max":
-                            screen_a_vvv = np.max([v["score"] for v in screen_a.values()])
-                            screen_b_vvv = np.max([v["score"] for v in screen_b.values()])
-                        else:
-                            raise ValueError(vvv)
-
-                        # check if dominance is causing the model score to be lower
-                        results.append(
-                            int(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] < screen_b[model]["score"])
-                            -
-                            int(screen_a_vvv > screen_b_vvv and screen_a[model]["score"] > screen_b[model]["score"])
-                        )
-
-            output[data_key]["dominance_" + vvv][k] = np.mean(results)
 
 
 with open("computed/similarity_dominance_bias.json", "w") as f:
