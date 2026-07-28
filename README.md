@@ -1,4 +1,4 @@
-# Contrastive ESA: Human Evaluation of Multiple Translations at Once
+# Contrastive ESA: Human Evaluation of Multiple Translations at Once [![Paper](https://img.shields.io/badge/📜%20paper-481.svg)](https://vilda.net/papers/cesa.pdf)
 
 > **Abstract:**
 > Current human evaluation of machine translation typically assesses single outputs in isolation, a paradigm that suffers from high annotator noise and cost.
@@ -7,7 +7,7 @@
 > We validate cESA using a large-scale human evaluation of English->Japanese translations of 12 models, demonstrating reductions in annotation time and noise compared to standard pointwise evaluation.
 > Unlike existing contrastive ranking methods, cESA yields absolute quality judgments that enable simple, interpretable non-parametric model rankings without the need for post-hoc corrections.
 
-This repository contains the code for the paper [Contrastive ESA: Human Evaluation of Multiple Translations at Once](TODO).
+This repository contains the code for the paper [Contrastive ESA: Human Evaluation of Multiple Translations at Once](https://vilda.net/papers/cesa.pdf).
 
 <img alt="Pearmut cESA screenshot" src="https://github.com/user-attachments/assets/0d8efec2-08be-4d0e-830f-7accc295f5a4" />
 
