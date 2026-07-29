@@ -94,6 +94,6 @@ If you use this work, please cite it as:
   title = {Contrastive {ESA}: Human Evaluation of Multiple Translations at Once},
   author = {Zouhar, Vilém and Grundkiewicz, Roman and Rajaee, Sara and Riley, Parker and Popel, Martin and Bawden, Rachel and Koehn, Philipp and Carpuat, Marine and Kocmi, Tom},
   year = {2026},
-  url = {https://github.com/zouharvi/cESA},
+  url = {https://vilda.net/papers/cesa.pdf},
 }
 ```
